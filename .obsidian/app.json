@@ -1,0 +1,10 @@
+{
+  "userIgnoreFilters": [
+    "Library",
+    "Temp/",
+    "Logs/",
+    "Packages/",
+    "ProjectSettings/",
+    "UserSettings/"
+  ]
+}
