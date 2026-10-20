@@ -1,0 +1,14 @@
+C:\Users\USER\Desktop\Quizzerttack\Tienda\bin\Release\net6.0\linux-x64\Tienda.deps.json
+C:\Users\USER\Desktop\Quizzerttack\Tienda\bin\Release\net6.0\linux-x64\Tienda.dll
+C:\Users\USER\Desktop\Quizzerttack\Tienda\bin\Release\net6.0\linux-x64\Tienda.pdb
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.csproj.AssemblyReference.cache
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.AssemblyInfoInputs.cache
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.AssemblyInfo.cs
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.csproj.CoreCompileInputs.cache
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.sourcelink.json
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.dll
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\refint\Tienda.dll
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.pdb
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\ref\Tienda.dll
+C:\Users\USER\Desktop\Quizzerttack\Tienda\obj\Release\net6.0\linux-x64\Tienda.csproj.Up2Date

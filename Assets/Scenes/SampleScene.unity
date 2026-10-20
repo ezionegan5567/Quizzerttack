@@ -1834,6 +1834,7 @@ GameObject:
   - component: {fileID: 407878720}
   - component: {fileID: 407878719}
   - component: {fileID: 407878718}
+  - component: {fileID: 407878721}
   m_Layer: 0
   m_Name: Registros
   m_TagString: Untagged
@@ -1887,6 +1888,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &407878721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b68b0d16b2ee2254a87c8707ac5d60ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DemoLab09
+  miAlias: seijer
+  miNivel: 20
+  aliasOtro: pepe
+  nivelOtro: 19
+  franjaMaxima: 10
+  candidatosSuficientes: 2
 --- !u!1 &442118023
 GameObject:
   m_ObjectHideFlags: 0
