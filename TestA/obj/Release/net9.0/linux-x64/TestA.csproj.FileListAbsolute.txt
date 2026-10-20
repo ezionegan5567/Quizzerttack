@@ -1,0 +1,14 @@
+C:\Users\USER\Desktop\Quizzerttack\TestA\bin\Release\net9.0\linux-x64\TestA.deps.json
+C:\Users\USER\Desktop\Quizzerttack\TestA\bin\Release\net9.0\linux-x64\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\bin\Release\net9.0\linux-x64\TestA.pdb
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.csproj.AssemblyReference.cache
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.AssemblyInfoInputs.cache
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.AssemblyInfo.cs
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.csproj.CoreCompileInputs.cache
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.sourcelink.json
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\refint\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.pdb
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\ref\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\linux-x64\TestA.csproj.Up2Date

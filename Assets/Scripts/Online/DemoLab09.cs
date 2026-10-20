@@ -44,6 +44,7 @@ public class DemoLab09 : MonoBehaviour
         {
             // PASO 1: mi cuenta + mi defensa pública + mi inventario PROTEGIDO
             await UgsDefensa.IniciarAsync("principal");
+            await UgsRival.SondaAsync();
             var gestor = Object.FindFirstObjectByType<GestorTurnos>();
             var defensa = CrearDefensaDesdeEscena(gestor, miAlias, miNivel);
             await UgsDefensa.PublicarDefensaAsync(defensa);

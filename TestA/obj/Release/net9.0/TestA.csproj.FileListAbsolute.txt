@@ -1,0 +1,14 @@
+C:\Users\USER\Desktop\Quizzerttack\TestA\bin\Release\net9.0\TestA.deps.json
+C:\Users\USER\Desktop\Quizzerttack\TestA\bin\Release\net9.0\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\bin\Release\net9.0\TestA.pdb
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.csproj.AssemblyReference.cache
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.AssemblyInfoInputs.cache
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.AssemblyInfo.cs
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.csproj.CoreCompileInputs.cache
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.sourcelink.json
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\refint\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.pdb
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\ref\TestA.dll
+C:\Users\USER\Desktop\Quizzerttack\TestA\obj\Release\net9.0\TestA.csproj.Up2Date

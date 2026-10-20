@@ -9,35 +9,36 @@
     ".NETCoreApp,Version=v6.0/linux-x64": {
       "Tienda/1.0.0": {
         "dependencies": {
-          "Com.Unity.Services.CloudCode.Apis": "0.0.27",
-          "Com.Unity.Services.CloudCode.Core": "0.0.7"
+          "Com.Unity.Services.CloudCode.Apis": "0.0.26",
+          "Com.Unity.Services.CloudCode.Core": "0.0.5",
+          "Microsoft.Extensions.Logging.Abstractions": "7.0.1"
         },
         "runtime": {
           "Tienda.dll": {}
         }
       },
-      "Com.Unity.Services.CloudCode.Apis/0.0.27": {
+      "Com.Unity.Services.CloudCode.Apis/0.0.26": {
         "dependencies": {
-          "Com.Unity.Services.CloudCode.Core": "0.0.7",
+          "Com.Unity.Services.CloudCode.Core": "0.0.5",
           "Newtonsoft.Json": "13.0.3"
         },
         "runtime": {
           "lib/netstandard2.1/Unity.Services.CloudCode.Apis.dll": {
-            "assemblyVersion": "0.0.27.0",
-            "fileVersion": "0.0.27.0",
+            "assemblyVersion": "0.0.26.0",
+            "fileVersion": "0.0.26.0",
             "localPath": "Unity.Services.CloudCode.Apis.dll"
           }
         }
       },
-      "Com.Unity.Services.CloudCode.Core/0.0.7": {
+      "Com.Unity.Services.CloudCode.Core/0.0.5": {
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
           "Newtonsoft.Json": "13.0.3"
         },
         "runtime": {
           "lib/netstandard2.1/Unity.Services.CloudCode.Core.dll": {
-            "assemblyVersion": "0.0.7.0",
-            "fileVersion": "0.0.7.0",
+            "assemblyVersion": "0.0.5.0",
+            "fileVersion": "0.0.5.0",
             "localPath": "Unity.Services.CloudCode.Core.dll"
           }
         }
@@ -48,6 +49,15 @@
             "assemblyVersion": "8.0.0.0",
             "fileVersion": "8.0.1024.46610",
             "localPath": "Microsoft.Extensions.DependencyInjection.Abstractions.dll"
+          }
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions/7.0.1": {
+        "runtime": {
+          "lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.723.27404",
+            "localPath": "Microsoft.Extensions.Logging.Abstractions.dll"
           }
         }
       },
@@ -68,19 +78,19 @@
       "serviceable": false,
       "sha512": ""
     },
-    "Com.Unity.Services.CloudCode.Apis/0.0.27": {
+    "Com.Unity.Services.CloudCode.Apis/0.0.26": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-w7Q/Ki0qyDLx6ugl6OLLB1pEPjQ5YrIk9UTeLOtWAiH1iYQsIpZezR95Fk/gtUbeKl5ECm1BYL0wXIaSv7XEHg==",
-      "path": "com.unity.services.cloudcode.apis/0.0.27",
-      "hashPath": "com.unity.services.cloudcode.apis.0.0.27.nupkg.sha512"
+      "sha512": "sha512-Pb2fVYVpi5mnWpGFEhmR7G3o1THU+g/Zc+UBNFWh3a2/TM9qEqDfqoHulNYp65IxkYbHKpSu4HlEbJvQSwcZfA==",
+      "path": "com.unity.services.cloudcode.apis/0.0.26",
+      "hashPath": "com.unity.services.cloudcode.apis.0.0.26.nupkg.sha512"
     },
-    "Com.Unity.Services.CloudCode.Core/0.0.7": {
+    "Com.Unity.Services.CloudCode.Core/0.0.5": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-K06SjgdmjZQvty/ORsS0O/sJr2uv1BbmrOO7nn8Yj2x/gERAZgDteFTEl730CnM2WoEjiagY/psPA+yz+cxA9A==",
-      "path": "com.unity.services.cloudcode.core/0.0.7",
-      "hashPath": "com.unity.services.cloudcode.core.0.0.7.nupkg.sha512"
+      "sha512": "sha512-7PM2V6wNePjucuCb0MFFWpmIkNVMVQi4O8JrEao0W0jVZoKP3cOLnwPVbN0orv7NwVs44ct8IHkx/DPvDmm9KQ==",
+      "path": "com.unity.services.cloudcode.core/0.0.5",
+      "hashPath": "com.unity.services.cloudcode.core.0.0.5.nupkg.sha512"
     },
     "Microsoft.Extensions.DependencyInjection.Abstractions/8.0.2": {
       "type": "package",
@@ -88,6 +98,13 @@
       "sha512": "sha512-3iE7UF7MQkCv1cxzCahz+Y/guQbTqieyxyaWKhrRO91itI9cOKO76OHeQDahqG4MmW5umr3CcCvGmK92lWNlbg==",
       "path": "microsoft.extensions.dependencyinjection.abstractions/8.0.2",
       "hashPath": "microsoft.extensions.dependencyinjection.abstractions.8.0.2.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Logging.Abstractions/7.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pkeBFx0vqMW/A3aUVHh7MPu3WkBhaVlezhSZeb1c9XD0vUReYH1TLFSy5MxJgZfmz5LZzYoErMorlYZiwpOoNA==",
+      "path": "microsoft.extensions.logging.abstractions/7.0.1",
+      "hashPath": "microsoft.extensions.logging.abstractions.7.0.1.nupkg.sha512"
     },
     "Newtonsoft.Json/13.0.3": {
       "type": "package",

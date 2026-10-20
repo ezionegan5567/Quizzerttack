@@ -100,23 +100,30 @@ public static class UgsDefensa
 
     // ---- Paso 2 (verificación): escribir la defensa de otro con TU token → 403 code 53 ----
     // El SDK no expone escribir datos ajenos; la petición cruda es la que responde 403.
+    // HttpClient (.NET): UnityWebRequest no resuelve este dominio en todos los casos.
     public static async Task VerificarEscrituraAjenaAsync(string otroPlayerId)
     {
         string projectId = Application.cloudProjectId;
-        string url = $"https://cloud-save-services.services.api.unity.com/v1/data/projects/{projectId}/players/{otroPlayerId}/items";
+        string url = $"https://cloud-save.services.api.unity.com/v1/data/projects/{projectId}/players/{otroPlayerId}/items";
         string body = "{\"key\":\"" + Llaves.Defensa + "\",\"value\":{\"Nombre\":\"hack\"}}";
-        UnityWebRequest req = new UnityWebRequest(url, "POST");
-        req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body));
-        req.downloadHandler = new DownloadHandlerBuffer();
-        req.SetRequestHeader("Content-Type", "application/json");
-        req.SetRequestHeader("Authorization", "Bearer " + AuthenticationService.Instance.AccessToken);
-        await req.SendWebRequest();
-        string texto = req.downloadHandler != null ? req.downloadHandler.text : "";
-        if (req.result == UnityWebRequest.Result.Success)
-            Debug.Log("[VERIFICACIÓN] ¡OJO! Se escribió ajena sin permiso (no debía). Respuesta: " + texto);
-        else
-            Debug.Log($"[VERIFICACIÓN] Escritura ajena rechazada: HTTP {(int)req.responseCode} | resultado={req.result} | error={req.error} | cuerpo={texto}");
-        req.Dispose();
+        try
+        {
+            using var http = new System.Net.Http.HttpClient();
+            using var contenido = new System.Net.Http.StringContent(body, Encoding.UTF8, "application/json");
+            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", AuthenticationService.Instance.AccessToken);
+            var resp = await http.PostAsync(url, contenido);
+            string texto = await resp.Content.ReadAsStringAsync();
+            if (resp.IsSuccessStatusCode)
+                Debug.Log("[VERIFICACIÓN] ¡OJO! Se escribió ajena sin permiso (no debía). Respuesta: " + texto);
+            else
+                Debug.Log($"[VERIFICACIÓN] Escritura ajena rechazada: HTTP {(int)resp.StatusCode} | cuerpo={texto}");
+        }
+        catch (Exception e)
+        {
+            string detalle = e.Message;
+            for (var ex = e.InnerException; ex != null; ex = ex.InnerException) detalle += " <-- " + ex.Message;
+            Debug.Log("[VERIFICACIÓN] Error de conexión: " + detalle);
+        }
     }
 }
 #endif

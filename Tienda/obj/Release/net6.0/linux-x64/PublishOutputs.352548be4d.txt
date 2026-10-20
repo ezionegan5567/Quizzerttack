@@ -1,0 +1,8 @@
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Tienda.deps.json
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Tienda.pdb
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Unity.Services.CloudCode.Apis.dll
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Unity.Services.CloudCode.Core.dll
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Newtonsoft.Json.dll
+C:\Users\USER\AppData\Local\Temp\opencode\r2r6\Tienda.dll

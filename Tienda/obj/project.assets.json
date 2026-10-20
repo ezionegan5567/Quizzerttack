@@ -1,7 +1,7 @@
 {
   "version": 4,
   "targets": {
-    "net9.0": {
+    "net6.0": {
       "Com.Unity.Services.CloudCode.Apis/0.0.26": {
         "type": "package",
         "dependencies": {
@@ -34,12 +34,12 @@
       "Microsoft.Extensions.DependencyInjection.Abstractions/8.0.2": {
         "type": "package",
         "compile": {
-          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -50,12 +50,12 @@
       "Microsoft.Extensions.Logging.Abstractions/7.0.1": {
         "type": "package",
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -117,7 +117,7 @@
         }
       }
     },
-    "net9.0/linux-x64": {
+    "net6.0/linux-x64": {
       "Com.Unity.Services.CloudCode.Apis/0.0.26": {
         "type": "package",
         "dependencies": {
@@ -150,12 +150,12 @@
       "Microsoft.Extensions.DependencyInjection.Abstractions/8.0.2": {
         "type": "package",
         "compile": {
-          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -166,12 +166,12 @@
       "Microsoft.Extensions.Logging.Abstractions/7.0.1": {
         "type": "package",
         "compile": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net7.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+          "lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll": {
             "related": ".xml"
           }
         },
@@ -631,7 +631,7 @@
     }
   },
   "projectFileDependencyGroups": {
-    "net9.0": [
+    "net6.0": [
       "Com.Unity.Services.CloudCode.Apis >= 0.0.26",
       "Com.Unity.Services.CloudCode.Core >= 0.0.5",
       "Microsoft.Extensions.Logging.Abstractions >= 7.0.1"
@@ -660,16 +660,16 @@
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
-        "net9.0"
+        "net6.0"
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
-        "net9.0": {
-          "framework": "net9.0",
-          "targetAlias": "net9.0",
+        "net6.0": {
+          "framework": "net6.0",
+          "targetAlias": "net6.0",
           "projectReferences": {}
         }
       },
@@ -686,9 +686,9 @@
       "SdkAnalysisLevel": "11.0.100"
     },
     "frameworks": {
-      "net9.0": {
-        "framework": "net9.0",
-        "targetAlias": "net9.0",
+      "net6.0": {
+        "framework": "net6.0",
+        "targetAlias": "net6.0",
         "dependencies": {
           "Com.Unity.Services.CloudCode.Apis": {
             "target": "Package",
@@ -717,15 +717,27 @@
         "downloadDependencies": [
           {
             "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[9.0.21, 9.0.21]"
+            "version": "[6.0.36, 6.0.36]"
+          },
+          {
+            "name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
+            "version": "[6.0.36, 6.0.36]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Crossgen2.win-x64",
+            "version": "[6.0.36, 6.0.36]"
           },
           {
             "name": "Microsoft.NETCore.App.Ref",
-            "version": "[9.0.21, 9.0.21]"
+            "version": "[6.0.36, 6.0.36]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Runtime.linux-x64",
+            "version": "[6.0.36, 6.0.36]"
           },
           {
             "name": "Microsoft.WindowsDesktop.App.Ref",
-            "version": "[9.0.21, 9.0.21]"
+            "version": "[6.0.36, 6.0.36]"
           }
         ],
         "frameworkReferences": {
@@ -733,7 +745,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\11.0.100-rc.2.26504.105/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\11.0.100-rc.2.26504.105\\RuntimeIdentifierGraph.json"
       }
     },
     "runtimes": {

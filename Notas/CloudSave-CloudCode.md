@@ -1,48 +1,61 @@
 # Cloud Save + Cloud Code (Lab09)
 
-> Actualizado 2026-10-20 (sesión 1). Sección complementaria de [[Sistemas]].
+> Actualizado 2026-10-20 (sesión final). Sección complementaria de [[Sistemas]].
 
-## Estado
-- Cliente UGS (`#if UGS_ON`, se activa solo al compilar por `Assets/Editor/ActivarUgs.cs`):
-  - `Assets/Scripts/Modelos/Estado.cs` — DTOs: `DefensaPublica`, `HeroeDefensa`, `Llaves` (Defensa/Nivel(Inventario inexistente?...)), `BuscarRival*`, `ResolverCombate*`, `ResultadoCombate`.
-  - `Assets/Scripts/Online/UgsDefensa.cs` — Cloud Save: Sign-in anónimo por perfil, `PublicarDefensaAsync` (dos llaves `defensa`+`nivel` con acceso público), `LeerDefensaDeAsync`, `CambiarPerfilAsync`, `VerificarEscrituraAjenaAsync` (petición cruda 403, loguea resultado/error/cuerpo; URL corregida a `/v1/data/projects/{projectId}/players/{id}/items`).
-  - `Assets/Scripts/Online/UgsRival.cs` — Cloud Code: `BuscarRivalAsync`, `ResolverCombateAsync`, `PublicarInventarioAsync` (request = Dictionary `{Equipo:[ids]}`).
-  - `Assets/Scripts/Online/DemoLab09.cs` — demo F10 con batas `corriendo` (anti doble F10), flujo completo para las capturas.- Proyecto Unity vinculado: **verdaderos avances de open code** (29f63d5d-2a09-416b-815f-e496fa89a0a9), ambiente `production`, Unity 6000.0.6f1.
-- SDK versión 3.x instalados: **cloudsave** (3.5.0), **cloudcode** (1.1.0), **authentication** (3.5.1).
-- Notas SDK:
-  - Tipos de acceso en `Unity.Services.CloudSave.Models.Data.Player` (`SaveOptions(new PublicWriteAccessClassOptions())`, `LoadOptions(new PublicReadAccessClassOptions(playerId))`); por CS0104 calificar completo.
-  - Cloud Code `CallModuleEndpointAsync<T>` solo acepta `Dictionary<string, object>` como request (pasar objetos tipados lanza CS1503).
-  - Authentication no tiene `State`; inicializar UGS **antes** de tocar `AuthenticationService.Instance`; login robusto con `catch` de "already sign"; perfiles: `SignOut(false)` + `SwitchProfile`.
-- Índice de Cloud Save **CREADO y READY**: `ugs cloud-save data index player create --visibility public --body S609-indice-nivel.json` → `Index with ID "nivel_1" created/READY` (los arrays de campos usan `{key, asc}`; los campos data escritos **antes** de crear el índice no se indexarán hasta reescribirse).
-- La **consulta** por CLI funciona: `ugs cloud-save data player query --visibility public --body S609-consulta-nivel.json` → sin 403 (pipeline sano; vacío porque lo escrito antes del índice no se indexó hasta que el F10 lo reescriba).
-- Probar 403 de Cloud Save pendiente: al ser el acceso **público** la escritura ajena puede requerir token+Oak 403; el esfuerzo real de pruebas se respalda con el log completo.
-- **Módulo deploy al 2026-10-20 (06:19) con el nombre correcto "Tienda"** pero problema aún abierto: `get-spec` devuelve `paths: {}` (endpoints vacíos) — ver Debug.
+## Estado FINAL — DEMO COMPLETO ✔
+Proyecto Unity vinculado: **verdaderos avances de open code** (29f63d5d-2a09-416b-815f-e496fa89a0a9), ambiente `production`, Unity 6000.0.6f1. SDKs: cloudsave 3.5.0, cloudcode 1.1.0, authentication 3.5.1.
 
-## Flujo del demo (F10 en la escena con el juego montado)
-1. Perfil 'principal' (nivel 20, alias 'seijer'): publica defensa + **inventario** (via módulo, clave protegida `inventario`).
-2. Perfil 'otro' (nivel 19, alias 'pepe'): publica su defensa+inventario, **lee la de 'principal'** (PASO 2 OK) e intenta escribirla → espera el **403**.
-3. Vuelve a 'principal': `BuscarRival` (franja ±2→×2→tope 10) encuentra a 'pepe' → `ResolverCombate`: el servidor arma rival con `defensa` pública + `inventario` protegida; +100 oro/+10 trofeos si ganas, NPC si no hay rival.
-- Comparamos consumos de **Consultas/Lecturas de índice** (tabla para el reporte; target: encajonado en `BuscarRivalResult`).
+Captura validar del F10 (11:55):
+- `[SONDA] Cloud Code respondió: {"nombre":"cli","playerId":"uT8..."}` — script JS responde con params declarados.
+- `[Inventario] Protegido en el servidor (5 héroes)` en ambos perfiles.
+- `[PASO 2 OK] El perfil 'otro' leyó mi defensa` (lectura pública ajena permitida).
+- `[VERIFICACIÓN] Escritura ajena rechazada: HTTP 403 | cuerpo={"code":53,"detail":"you are not permitted to access this user's data"}` — **403 code 53 exacto** (el lab).
+- `[BuscarRival] Hubo=True franja=4 consultas=2 lecturas=4 rival=pepe` — índice `nivel_1` encontró al rival en ±4.
+- `[ResolverCombate] Gano=True contra pepe (pvp) oro=100 trofeos=10` — combate pvp resuelto en el servidor.
 
-## Módulo Tienda (C#) — estructura + deploy
-- `Tienda.sln` (raíz) + `Tienda/`:
-  - `Tienda.csproj`: **TargetFramework net9.0**, `PublishReadyToRunComposite true`, paquetes **Com.**-prefix desde **nuget.org**: `Com.Unity.Services.CloudCode.Core` **0.0.5**, `Com.Unity.Services.CloudCode.Apis` **0.0.26** (antes net6.0/0.0.7/0.0.27; el zip BIEN compilaba), `Microsoft.Extensions.Logging.Abstractions` **7.0.1**. `NuGet.config` solo nuget.org.
-  - `Datos.cs` (respaldo de DTOs con namespace `Tienda`), `TablaRivales.cs` (stats de los **20 héroes + npcs + `OroPvp=100`/`TrofeosPvp=10` de [[Cartas-Heroes]]**), `Funciones.cs` (patrón `ModuleConfig : ICloudCodeSetup { config.AddGameApiClient(); }`, funciones `(IExecutionContext, IGameApiClient, request)`):
-    - `BuscarRival` — franja ±2→paso 2→tope, query índice `nivel_1` (`QueryIndexBody` campo `GE`/`LE`, `fields:[{key,value,op,asc}]` camelCase; devuelve llaves `defensa`+`nivel`). Excluye al propio jugador. `PublicarInventario(Request{Equipo:List<string>})` — SetProtectedItemAsync clave `inventario`.
-    - `ResolverCombate` — NPC (tabla), pvp con lectura pública de defensa ajena + **lectura protegida** del rival; conteo oro/trofeos.
-- **Problema resuelto del deploy (¡claves!):**
-  - Si el `.sln` está en la carpeta **raíz** del proyecto con un solo csproj dentro `Tienda/`, el CLI (v2.0.0) busca el `.pubxml` desde la raíz hacia arriba y **agarra el `FolderProfile.pubxml` de la plantilla** `Library/PackageCache/com.unity.services.cloudcode@.../Template~/Project/...` → el módulo salía con nombre **"Project"** (por eso el 404 del cliente: pedía `Tienda`).
-  - Esto no salta con error si hay excesos (`Too many Publish Profiles`); para evitarlo: **mover el sln DENTRO de `Tienda/`** (junto al csproj) y crear `Tienda/Properties/PublishProfiles/main.pubxml` (Release/Any CPU/linux-x64). Un solo `.pubxml` en la jerarquía del sln.
-  - Tras arreglar eso: deploy OK de `Tienda.sln` (Updated), `modules list --json` → `Name: Tienda` ✅; zip verificado con `cloud-code modules get Tienda` (signedUrl en 299 s; `Invoke-WebRequest` y `Expand-Archive`).
-- Comandos CLI que funcionan (ugs.exe 2.0.0 en `Quizzerttack/ugs/`):
-  - `ugs deploy "Tienda\Tienda.sln" --services cloud-code-modules`
-  - `ugs cloud-code modules list --json` / `modules get <name>` (signedDownloadURL) / `modules delete <name>`
-  - `ugs cloud-save data index player create --visibility public --body S609-indice-nivel.json`
-  - `ugs cloud-save data player query --visibility public --body S609-consulta-nivel.json`
+## Arquitectura (camino JS que SÍ funciona)
+- Cliente: `UgsDefensa` (Cloud Save: login anónimo por perfil, defensa pública dos llaves `defensa`+`nivel`, lectura ajena pública, verificar 403), `UgsRival` (Cloud Code: `CallEndpointAsync<T>` con `Dictionary<string,object>`).
+- Cloud Code **scripts JS** (no módulo C# — ver abajo):
+  - `Sonda.js` — eco de params `{parametro: "String"}` vía `module.exports.params` (REQUERIDO: sin declarar, llega `{}`).
+  - `T9Inventario.js` — `setProtectedItem(projectId, playerId, {key:"inventario", value})` con `DataApi(context)` (serviceToken); stats reales de tabla, id cliente.
+  - `T9Buscar.js` — `queryPublicPlayerData` con franja ±2→paso 2→tope; `fields:[{key,value,op,asc}]`, `returnKeys:["defensa","nivel"]`, `limit:20`; excluye `context.playerId`; elige el más cercano; cuenta `Consultas`/`LecturasConsumidas`.
+  - `T9Combate.js` — npc (tabla) o pvp: `getPublicItems(rival, ["defensa"])` + `getProtectedItems(rival, ["inventario"])`; validar `heroe_coloso` y héroes declarados vs inventario; poder `#héroes*100 + ataqueProm*10`; +100 oro/+10 trofeos.
+- Accesos Cloud Save: defensa = **pública** (actor: cliente, `PublicWriteAccessClassOptions`); inventario = **protegida** (escribe SOLO el servidor via script).
+- `context.playerId` reemplaza el playerId que mandaría el cliente (server-authoritative).
 
-## Debug abierto (2026-10-20)
-- Estado: deploy correcto del módulo **Tienda** (compila, nombre OK), pero `get-spec`/`get` devuelven **`endpoints: {}`** → el cliente llamaría `module/Tienda/...` y **error 404 “NotFound”** ([LAB09] Falló: NotFound (404)).
-- Ya descartado: compilación (DLL del zip contiene `BuscarRival`/`ResolverCombate`/`PublicarInventario`), nombre del módulo (arreglado), cds/API levels (0.0.5/0.0.26 alineados a la plantilla de `Books`).
-- Sospecha actual: derivación de endpoints en el lado servidor (algún step del pipeline no está leyendo los atributos `[CloudCodeFunction]`).
-- Siguiente prueba (pendiente del usuario): `ugs deploy` del módulo **de nuevo** y probar F10; si persiste: probar `PublicarInventario` por curl REST con autenticación admin; quizás necesite **`modinfo.json`** o depender de la pipeline del **Unity Editor** (botón Deploy del paquete cloudcode).
-- Los `slnx` en la raíz (`Quizzerttack.slnx`, `Avancesdeproyectofinalparacloud.slnx`, `verdaderos avances de open code.slnx`) **no confundir** con el `Tienda.sln` clásico: el CLI solo acepta `.sln` al deploy; `dotnet new sln` en .NET 11 crea `.slnx` por defecto → usar `--format sln`.
+## Módulo C# "Tienda" — por qué quedó descartado
+- Deploy OK con nombre correcto (mover el `.sln` DENTRO de `Tienda/` + `Properties/PublishProfiles/main.pubxml` único; sin eso el CLI tomaba el `FolderProfile.pubxml` de la plantilla de Unity y el módulo salía llamándose **"Project"** → 404 del cliente).
+- Aun con el nombre correcto y compilación sin errores, `get-spec` devolvía `paths: {}` (endpoints no derivados server-side) → el cliente llegaba con 404 NotFound. Reproducido con: módulo mínimo (net9 sin APIs), Tienda completo, y zip `.ccm` R2R hecho a mano (net9 y net6). Es un fallo del pipeline de UGS, no del código.
+- Decisión: **migrar la lógica completa a 3 scripts JS** — desplegados y funcionando de una.
+- Si el docente requiere módulo C#: probar el botón Deploy del paquete de Editor Cloud Code (pipeline del editor) — pendiente, hoy no se usó.
+
+## Quirks importantes aprendidos (para el docente)
+1. Scripts JS: el server FILTRA los params no declarados → declarar `module.exports.params` OBLIGATORIO. Autenticación: `CallEndpointAsync` (JS) también acepta `Dictionary`.
+2. Host REST correcto de Cloud Save: **`cloud-save.services.api.unity.com`** (el `-services` no existe: `NameResolutionFailure`); `UnityWebRequest` no resuelve ese dominio aunque la shell sí → usar `HttpClient` de .NET.
+3. DNS de Mono cachea negativos si el dominio no estaba en caché al 1er intento (fallback explainable en capturas anteriores).
+4. Auth anónima: inicializar UGS **ANTES** de `AuthenticationService.Instance`; login robusto con catch de "already sign"; `SignOut(false)+SwitchProfile`.
+5. Cloud Code `CallEndpointAsync<T>` solo acepta `Dictionary<string, object>` (objetos tipados lanza CS1503).
+6. índice Cloud Save: created con `ugs cloud-save data index player create --visibility public --body S609-indice-nivel.json` (`{key,asc}`); datos escritos ANTES de crear el índice NO se indexan (solo se reindexan al reescribirse).
+7. El token de servicio REST directo a `api.unity.com` da 403 WAF; `api.services.unity.com` no resolevía en shell — todo por CLI/SDK.
+
+## Tabla de consumos (reporte, del F10 de las 11:55)
+| # | Operación (paso del lab) | Servicio/canal | Consumos |
+|---|---|---|---|
+| 1 | Publish defensa 'seijer' (2 llaves, pública) | Cloud Save REST | 1 escritura |
+| 2 | Publish inventario 'seijer' (protegida via T9Inventario) | Cloud Code + Cloud Save | 1 escritura protegida |
+| 3 | Publish defensa 'pepe' | Cloud Save REST | 1 escritura |
+| 4 | Publish inventario 'pepe' | Cloud Code + Cloud Save | 1 escritura protegida |
+| 5 | Leer defensa ajena ('otro' lee 'principal', PASO 2) | Cloud Save REST | 1 lectura pública |
+| 6 | Intentar escribir ajena (espera 403) | Cloud Save REST | 0 (rechazada, HTTP 403 code 53) |
+| 7 | BuscarRival (franja ±2 → sin suficiente, añade ±4) → rival=pepe | Cloud Code → índice `nivel_1` | **2 consultas, 4 lecturas de índice** (2+2 entradas) |
+| 8 | ResolverCombate (defensa pública + inventario proteg. del rival) | Cloud Code + Cloud Save | 2 lecturas |
+| | **Total demo** | | **4 escrituras REST + 2 protegidas (server), 2 consultas + 6 lecturas** |
+
+> La franja termina en ±4 porque alcanzó `CandidatosSuficientes=2`; con franja máxima ±10 hubieran sido hasta 5 consultas. "Lecturas" = entradas devueltas por cada consulta del índice.
+
+## Conclusiones
+1. **Multijugador asíncrono sin servidor dedicado**: cada jugador publica su defensa en Cloud Save (pública); otro jugador la lee cuando quiere y ataca; Cloud Code resuelve el combate server-side con stats reales (anti-cheat).
+2. **Seguridad por capas**: escritura-ajena rechazada (403 code 53), inventario protegido escrito sólo por el servidor, y el combate ignora la defensa si declara héroes que no están en el inventario real.
+3. **Módulos C# fallaron por pipeline (endpoints no derivados en el servidor), no por código**; los scripts JS replican el flujo 1:1 y son la alternativa estable hoy. La capa `UgsRival` abstrae la diferencia (solo cambió el endpoint y el tipo de llamada).
+4. **Consultas del índice son baratas y predecibles**: expandir la franja ±2→±4 costó 2 consultas y 4 entradas leídas; el límite de 20 por consulta y el "suficientes=2" evitan sobreconsultas.
+5. **El índice solo indexa datos escritos después de su creación** (error común): creamos el índice primero y las escrituras del F10 ya se indexaron → `rival=pepe` encontrado en 2da franja.
