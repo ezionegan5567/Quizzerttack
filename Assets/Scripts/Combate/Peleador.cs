@@ -20,6 +20,9 @@ public class Peleador : MonoBehaviour
     public int indiceCasilla = 0;
     public string faccion = "F1";
 
+    [Header("Simulación online (Scripts/Online)")]
+    public bool esSimulacion = false;
+
     [Header("Datos (nombre busca habilidades en DatosFacciones)")]
     public string nombrePeleador = "Guerrero";
     public int vida = 100;
@@ -105,6 +108,77 @@ public class Peleador : MonoBehaviour
         if (st != null) { vida = st[0]; ataque = st[1]; vidaMax = vida; }
     }
 
+    // ============ SIMULACIÓN (Scripts/Online) ============
+    public void IniciarSimulacion()
+    {
+        int[] st = DatosFacciones.GetStats(nombrePeleador);
+        if (st != null) { vida = st[0]; ataque = st[1]; }
+        vidaMax = vida;
+        ataqueBase = ataque;
+
+        DatosPeleador d = DatosFacciones.Get(nombrePeleador);
+        if (d != null && d.habs != null)
+        {
+            habilidades = new string[d.habs.Length];
+            habsData = new InfoHabilidad[d.habs.Length];
+            for (int i = 0; i < d.habs.Length; i++)
+            {
+                habilidades[i] = d.habs[i].nombre;
+                habsData[i] = d.habs[i];
+            }
+            if (d.pasiva == EfectoH.ContadorDevolver) tieneDevolver = true;
+            if (d.pasiva == EfectoH.ContadorSangre) tieneSangre = true;
+        }
+        else
+        {
+            habsData = new InfoHabilidad[] {
+                new InfoHabilidad("Golpe fuerte", EfectoH.Dano, ObjetivoH.Enemigo, 20)
+            };
+        }
+    }
+
+    public void AjustarVidaInicial(int v)
+    { if (v > 0) { vida = v; vidaMax = v; } }
+
+    public void AjustarAtaqueInicial(int v)
+    { if (v > 0) { ataque = v; ataqueBase = v; } }
+
+    // Marca la habilidad ya "preparada" sin quiz ni UI (para simulador automático).
+    public void PrepararSimulacion(int idx)
+    {
+        if (habsData == null || habsData.Length == 0) return;
+        if (idx < 0 || idx >= habsData.Length) idx = 0;
+        indiceHabilidadElegida = idx;
+        multGuardado = 1f;
+        habilidadUsada = true;
+        habilidadEjecutada = false;
+        fijado = false;
+    }
+
+    // Elige la habilidad con más impacto directo (daño > área > dúples > cura).
+    public int MejorIndiceSimulacion()
+    {
+        if (habsData == null || habsData.Length == 0) return 0;
+        int mejor = 0, mejorPeso = int.MinValue;
+        for (int i = 0; i < habsData.Length; i++)
+        {
+            InfoHabilidad h = habsData[i];
+            int peso;
+            switch (h.efecto)
+            {
+                case EfectoH.Dano: peso = 5; break;
+                case EfectoH.DanoTodos: peso = 4; break;
+                case EfectoH.DanoDos: peso = 3; break;
+                case EfectoH.Curar:
+                case EfectoH.CurarZona: peso = 2; break;
+                default: peso = 1; break;
+            }
+            peso += Mathf.Min(h.valor, 60) / 12;
+            if (peso > mejorPeso) { mejorPeso = peso; mejor = i; }
+        }
+        return mejor;
+    }
+
     void Start()
     {
         int[] st = DatosFacciones.GetStats(nombrePeleador);
@@ -131,6 +205,9 @@ public class Peleador : MonoBehaviour
                 new InfoHabilidad("Golpe fuerte", EfectoH.Dano, ObjetivoH.Enemigo, 20)
             };
         }
+
+        // Simulación: sin panel, barra ni botones (IniciarSimulacion ya corrió).
+        if (esSimulacion) return;
 
         if (panelHabilidades == null)
             CrearPanelAutomatico();
@@ -203,6 +280,7 @@ public class Peleador : MonoBehaviour
     // ============ HOVER / CLICK ============
     void OnMouseEnter()
     {
+        if (esSimulacion) return;
         if (habilidadUsada) return;
         if (seleccionadoActual != null && seleccionadoActual != this) return;
         if (!EsMiTurno()) return;
@@ -217,6 +295,7 @@ public class Peleador : MonoBehaviour
 
     void OnMouseDown()
     {
+        if (esSimulacion) return;
         if (gestor == null) gestor = Object.FindFirstObjectByType<GestorTurnos>();
 
         if (gestor != null && gestor.fase == 5)
@@ -298,6 +377,7 @@ public class Peleador : MonoBehaviour
         foreach (Peleador p in Object.FindObjectsByType<Peleador>(FindObjectsSortMode.None))
         {
             if (p == null || !p.EstaVivo() || p.jugadorDueno == jugadorDueno) continue;
+            if (p.esSimulacion != esSimulacion) continue;
             if (p.Tiene(EfectoH.Invisible)) continue;
             if (primero == null) primero = p;
             if (p.Tiene(EfectoH.Provocar) && taunt == null) taunt = p;
@@ -354,7 +434,8 @@ public class Peleador : MonoBehaviour
         Peleador[] todos = Object.FindObjectsByType<Peleador>(FindObjectsSortMode.None);
         foreach (Peleador p in todos)
             if (p != null && p != lanzador && p.jugadorDueno != lanzador.jugadorDueno
-                && p.EstaVivo() && p.Tiene(EfectoH.Provocar) && !p.Tiene(EfectoH.Invisible))
+                && p.EstaVivo() && p.Tiene(EfectoH.Provocar) && !p.Tiene(EfectoH.Invisible)
+                && p.esSimulacion == lanzador.esSimulacion)
                 return true;
         return false;
     }
@@ -571,7 +652,8 @@ public class Peleador : MonoBehaviour
     {
         List<Peleador> r = new List<Peleador>();
         foreach (Peleador p in Object.FindObjectsByType<Peleador>(FindObjectsSortMode.None))
-            if (p != null && p.EstaVivo() && p.jugadorDueno == jugadorDueno) r.Add(p);
+            if (p != null && p.EstaVivo() && p.jugadorDueno == jugadorDueno
+                && p.esSimulacion == esSimulacion) r.Add(p);
         return r;
     }
 
@@ -579,7 +661,8 @@ public class Peleador : MonoBehaviour
     {
         List<Peleador> r = new List<Peleador>();
         foreach (Peleador p in Object.FindObjectsByType<Peleador>(FindObjectsSortMode.None))
-            if (p != null && p.EstaVivo() && p.jugadorDueno != jugadorDueno) r.Add(p);
+            if (p != null && p.EstaVivo() && p.jugadorDueno != jugadorDueno
+                && p.esSimulacion == esSimulacion) r.Add(p);
         return r;
     }
 
@@ -819,7 +902,8 @@ public class Peleador : MonoBehaviour
         foreach (Peleador p in Object.FindObjectsByType<Peleador>(FindObjectsSortMode.None))
             if (p != null && p != atacante && p.jugadorDueno != atacante.jugadorDueno
                 && p.indiceCasilla == atacante.indiceCasilla && p.EstaVivo()
-                && !p.Tiene(EfectoH.Invisible))
+                && !p.Tiene(EfectoH.Invisible)
+                && p.esSimulacion == atacante.esSimulacion)
                 return true;
         return false;
     }

@@ -329,6 +329,25 @@ public class GestorTurnos : MonoBehaviour
         MostrarTurno(jugadorInicial);
     }
 
+    // ONLINE: reinicia la partida limpia para combatir contra un escuadrón
+    // cargado de la nube (lo usa PanelRegistros en Scripts/Online).
+    public void ReiniciarContraRegistro()
+    {
+        Debug.Log("Reinicio para combatir contra escuadrón guardado.");
+        Peleador.LimpiarEstaticos();
+        Peleador[] todos = Object.FindObjectsByType<Peleador>(FindObjectsSortMode.None);
+        foreach (Peleador p in todos)
+            if (p != null) Destroy(p.gameObject);
+        CartaSeleccion[] escena = Object.FindObjectsByType<CartaSeleccion>(FindObjectsSortMode.None);
+        foreach (CartaSeleccion s in escena)
+            if (s != null) s.ReiniciarCarta();
+        juegoTerminado = false;
+        esperandoMoneda = false;
+        fase = 1;
+        if (botonPasarTurno != null) botonPasarTurno.interactable = true;
+        MostrarTurno(jugadorInicial);
+    }
+
     void TerminarJuego(string mensaje)
     {
         juegoTerminado = true;

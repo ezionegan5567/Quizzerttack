@@ -1823,6 +1823,70 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &407878717
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 407878720}
+  - component: {fileID: 407878719}
+  - component: {fileID: 407878718}
+  m_Layer: 0
+  m_Name: Registros
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &407878718
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 128a6b54f0553274caea61e74000d0fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClienteNube
+  urlBase: https://quizzerttack-default-rtdb.firebaseio.com
+  timeoutSegundos: 10
+--- !u!114 &407878719
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3b414b52191a6e46a0a12d07aecb250, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PanelRegistros
+  miNombre: seijer
+  teclaAbrir: 290
+  filasVisibles: 8
+  panelUI: {fileID: 0}
+  cliente: {fileID: 0}
+--- !u!4 &407878720
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1211.5868, y: 478.66742, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &442118023
 GameObject:
   m_ObjectHideFlags: 0
@@ -3073,26 +3137,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 683957f75da9fe841a052b7cf21dcf8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GaleriaArte
-  Bufeador: {fileID: 6402343827447086572, guid: b606a9974f3f7ca4dafcb10f6f5b10b0, type: 3}
-  Asesino: {fileID: 3237774459393621138, guid: 916c6bbcf16f9f549a05edf7aabab85e, type: 3}
-  Lanza: {fileID: 0}
-  Enano: {fileID: 0}
-  Vampiro: {fileID: 0}
-  Mago: {fileID: 0}
-  Cazador: {fileID: 0}
-  Hacha: {fileID: 0}
-  Lancero: {fileID: 0}
-  Nigromante: {fileID: 0}
-  Alquimista: {fileID: 0}
-  Pistolero: {fileID: 0}
-  Escudero: {fileID: 0}
-  Doshachas: {fileID: 0}
-  Lobo: {fileID: 0}
-  Cura: {fileID: 0}
-  Arquero: {fileID: 0}
-  Muneco: {fileID: 0}
-  Espadachin: {fileID: 0}
-  Draco: {fileID: 0}
+  Bufeador: {fileID: 8389744389757568192, guid: b88fc32464ecc934cb6fe8f689c3127e, type: 3}
+  Asesino: {fileID: -6756988845452011933, guid: 38a388ba023bf1e4492511c30d2f0910, type: 3}
+  Lanza: {fileID: -153207079434046183, guid: 8494fe88b23e8764fbe0afae597ec9af, type: 3}
+  Enano: {fileID: 901506587560062634, guid: 2d821f8fb0097f94b813e323818a7379, type: 3}
+  Vampiro: {fileID: 5559662467142628542, guid: d77317faf0bbc964ea4d7700d9833858, type: 3}
+  Mago: {fileID: -8287984193659030122, guid: 8e776a85e3558164d91444981dd7559f, type: 3}
+  Cazador: {fileID: -8273641548761727651, guid: 1f5174671b943744491ef8cbd0c14a66, type: 3}
+  Hacha: {fileID: -4225104966981574807, guid: 99fb3596557ee7544ac88b86bd6233ee, type: 3}
+  Lancero: {fileID: -4480870083632314167, guid: 1e894f2d94dd64c44a25d5192356346d, type: 3}
+  Nigromante: {fileID: -5702959502302775343, guid: f464ee8e047c09642ba6f476a6065b7f, type: 3}
+  Alquimista: {fileID: -8363648853375025922, guid: de46dd20576b6dc438b6b1d4b06f1818, type: 3}
+  Pistolero: {fileID: 2212632505956676090, guid: 5b6a4559738b88b44a7f54e3b863770b, type: 3}
+  Escudero: {fileID: 1185173038586410170, guid: 84f53aeb8106b434e93067c325aa972e, type: 3}
+  Doshachas: {fileID: -2203237208122163616, guid: d4d0aec778885be4fb1636fe17379af5, type: 3}
+  Lobo: {fileID: -2776777197877885408, guid: c1e36a8ebfd9d82479247bee69cc6b5c, type: 3}
+  Cura: {fileID: -4423450090214009036, guid: 8a460cfc5b14fc94494f67137155e429, type: 3}
+  Arquero: {fileID: -4376860284622173738, guid: ea185029cb0ee6946a034c5e865314ea, type: 3}
+  Muneco: {fileID: -6375479233812738255, guid: bb1275ae218f9784a962b83a4aac0335, type: 3}
+  Espadachin: {fileID: 8419541594886062231, guid: 4697973968984ba4fab0c68a34be2050, type: 3}
+  Draco: {fileID: 640156761929196839, guid: be239d34bdab3534cba99d279b184dd7, type: 3}
   BufeadorCampo: {fileID: 0}
   AsesinoCampo: {fileID: 0}
   LanzaCampo: {fileID: 0}
@@ -9112,3 +9176,4 @@ SceneRoots:
   - {fileID: 400270369}
   - {fileID: 2079522085}
   - {fileID: 546527849}
+  - {fileID: 407878720}

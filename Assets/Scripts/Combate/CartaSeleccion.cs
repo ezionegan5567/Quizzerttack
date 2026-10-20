@@ -141,6 +141,25 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
         if (tenirPorFaccion) imagenCarta.color = TinteFaccion(faccion);
     }
 
+    // ONLINE: re-lee el sprite para el nombre/facción nuevos (lo llama PanelRegistros).
+    public void RefrescarSprite()
+    {
+        if (imagenCarta == null) imagenCarta = GetComponent<Image>();
+        if (!usarSpriteDelPrefab || imagenCarta == null || prefabHeroe == null) return;
+        Sprite art = imagenPeleador;
+        if (art == null) art = GaleriaArte.Buscar(nombreHeroe);
+        if (art == null)
+        {
+            SpriteRenderer sr = prefabHeroe.GetComponentInChildren<SpriteRenderer>();
+            if (sr != null) art = sr.sprite;
+        }
+        if (art != null)
+        {
+            imagenCarta.sprite = art;
+            imagenCarta.preserveAspect = false;
+        }
+    }
+
     public bool EstaUsada()
     {
         return usada;
