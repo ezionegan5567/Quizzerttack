@@ -4,7 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 
-public class ScenesController : MonoBehaviour
+public class ScenesManager : MonoBehaviour
 {
     /*public void MainPage()
     {
@@ -64,8 +64,8 @@ public class ScenesController : MonoBehaviour
     public void MainPage() => StartTransition("OpeningMainScene");
     public void SelectorScene() => StartTransition("SelectorScene");
     public void Map1() => StartTransition("TestCinematic");
-    public void ModeScene() => StartTransition("ModeSelector");
-    public void CreditsScene() => StartTransition("CreditsScene");
+    public void MazoScene() => StartTransition("SeleccionaMazo");
+    public void OptionsScene() => StartTransition("EscenaOpciones");
     public void Winning() => StartTransition("WinnerScene");
 
     public void Quitgame()
