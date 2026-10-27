@@ -446,7 +446,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Jugar Solo
+  m_text: Jugar
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 396e02dcd3f22104e8a1bd0e6fab8d95, type: 2}
   m_sharedMaterial: {fileID: 456418783545733670, guid: 396e02dcd3f22104e8a1bd0e6fab8d95, type: 2}
@@ -1265,7 +1265,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &995855382
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1408,23 +1408,11 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 2103577581}
         m_TargetAssemblyTypeName: ScenesManager, Assembly-CSharp
-        m_MethodName: SelectorScene
+        m_MethodName: Quitgame
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: 
-        m_MethodName: 
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -1604,7 +1592,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Jugar Online
+  m_text: Editar Mazo
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 396e02dcd3f22104e8a1bd0e6fab8d95, type: 2}
   m_sharedMaterial: {fileID: 456418783545733670, guid: 396e02dcd3f22104e8a1bd0e6fab8d95, type: 2}
@@ -1766,7 +1754,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1550571948}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: 
+        m_MethodName: 
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1550571948
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2255,7 +2255,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9449042a384669c40abab05ee8e663c2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SoundManager
-  audioMixer: {fileID: 24100000, guid: 299fc2ce8a8f7f54aab96426262d084c, type: 2}
+  audioMixer: {fileID: 24100000, guid: 6dd4cb2f590bbc146a5a9c8a399ed1f0, type: 2}
   musicAudioSource: {fileID: 387939682}
   sfxAudioSource: {fileID: 387939682}
   extrasAudioSource: {fileID: 387939682}
@@ -2265,7 +2265,8 @@ MonoBehaviour:
   extrasSlider: {fileID: 0}
   musicSlider: {fileID: 0}
   sfxSlider: {fileID: 0}
-  musicTracks: []
+  musicTracks:
+  - {fileID: 0}
   sfxClips: []
   extraClips: []
 --- !u!4 &2103577580
@@ -2382,7 +2383,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 2103577581}
         m_TargetAssemblyTypeName: ScenesManager, Assembly-CSharp
-        m_MethodName: CreditsScene
+        m_MethodName: OptionsScene
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
