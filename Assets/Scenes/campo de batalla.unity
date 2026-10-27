@@ -3190,26 +3190,46 @@ MonoBehaviour:
   Muneco: {fileID: -6375479233812738255, guid: bb1275ae218f9784a962b83a4aac0335, type: 3}
   Espadachin: {fileID: 8419541594886062231, guid: 4697973968984ba4fab0c68a34be2050, type: 3}
   Draco: {fileID: 640156761929196839, guid: be239d34bdab3534cba99d279b184dd7, type: 3}
-  BufeadorCampo: {fileID: 0}
-  AsesinoCampo: {fileID: 0}
-  LanzaCampo: {fileID: 0}
-  EnanoCampo: {fileID: 0}
-  VampiroCampo: {fileID: 0}
-  MagoCampo: {fileID: 0}
-  CazadorCampo: {fileID: 0}
-  HachaCampo: {fileID: 0}
-  LanceroCampo: {fileID: 0}
-  NigromanteCampo: {fileID: 0}
-  AlquimistaCampo: {fileID: 0}
-  PistoleroCampo: {fileID: 0}
-  EscuderoCampo: {fileID: 0}
-  DoshachasCampo: {fileID: 0}
-  LoboCampo: {fileID: 0}
-  CuraCampo: {fileID: 0}
-  ArqueroCampo: {fileID: 0}
-  MunecoCampo: {fileID: 0}
-  EspadachinCampo: {fileID: 0}
-  DracoCampo: {fileID: 0}
+  BufeadorCampo: {fileID: 3819204614530525054, guid: 1b4eb9acbe633cb41af13acce694d987, type: 3}
+  AsesinoCampo: {fileID: -7009664315987596091, guid: 5d4c3369d4b82bd4cb13ce95a8492131, type: 3}
+  LanzaCampo: {fileID: 484607720602816762, guid: 940f8e42e7e1a63479d403e7c9fbe13b, type: 3}
+  EnanoCampo: {fileID: -5674724819354930130, guid: ae13dbd8956eb6c4da7a25cc87bb65d2, type: 3}
+  VampiroCampo: {fileID: 2134282054681014408, guid: 875549b0d7aad814298a90ab9e0c6f5a, type: 3}
+  MagoCampo: {fileID: -8525059243363192592, guid: c0f0f45b043ed1a41be4f43e7cd3b65e, type: 3}
+  CazadorCampo: {fileID: -7617997750593038795, guid: 6580d2423d2d7ef418886e2d405b4694, type: 3}
+  HachaCampo: {fileID: 6504046586624984540, guid: f6b229f42420b014ba81f2b49be72cf9, type: 3}
+  LanceroCampo: {fileID: 393345308916839635, guid: e5a40e3a4701e41418aa812114286354, type: 3}
+  NigromanteCampo: {fileID: 4489224507894202455, guid: 59257555fb0db8444b4d0462bb958748, type: 3}
+  AlquimistaCampo: {fileID: -6440642532878190624, guid: f668d8deffa40ee4092e791bc803c6ee, type: 3}
+  PistoleroCampo: {fileID: -6578734512285029757, guid: a81169662a3d3e243afcb9e43e9db5e6, type: 3}
+  EscuderoCampo: {fileID: -8024401626813218916, guid: 50485728b7c18dc4fb177dfce75824fc, type: 3}
+  DoshachasCampo: {fileID: -1860041809064284092, guid: 0d7c0fa83daecb747ad270b069c05c99, type: 3}
+  LoboCampo: {fileID: -119487221017783271, guid: 5aa26f8b4c2beac4c94186cc6c13dc86, type: 3}
+  CuraCampo: {fileID: -8640660419868218453, guid: 868027e45d47d98429b2011fc154c081, type: 3}
+  ArqueroCampo: {fileID: -8269020442580849640, guid: 4fb00a725a9522e49a8f3fd8e53da0b1, type: 3}
+  MunecoCampo: {fileID: 6433241988221312218, guid: 2440e86ab54f7ae4d8510799ed31b3ad, type: 3}
+  EspadachinCampo: {fileID: 8803957672648920025, guid: 807fea14174687844aaddba9e28a1522, type: 3}
+  DracoCampo: {fileID: -7055519616655134039, guid: b650432e4fae5dc45b3060fba72dc19a, type: 3}
+  BufeadorCampoP2: {fileID: 1357922247912544497, guid: f0f0ec33fa3a8d14a83cb99ba4a196c4, type: 3}
+  AsesinoCampoP2: {fileID: -4955889250683708626, guid: d084eff7433b199488581220afb96e5b, type: 3}
+  LanzaCampoP2: {fileID: -5262134516912877054, guid: 2c3acf2143fb0cf4aafa350d4106876f, type: 3}
+  EnanoCampoP2: {fileID: 81690904811382062, guid: 4513a0ae9585eff4fa07c7f8c642ff66, type: 3}
+  VampiroCampoP2: {fileID: 7257408038665347155, guid: f8d8d6889c1b86f4980fa10f8f716fca, type: 3}
+  MagoCampoP2: {fileID: 1246433339606073309, guid: 089580546e6a9cd479d7aaf40a977228, type: 3}
+  CazadorCampoP2: {fileID: 5464087310605018865, guid: 433c7a8bb0201b2418a1294cc3eb365e, type: 3}
+  HachaCampoP2: {fileID: -8111660253276106992, guid: 6fa705c2d48449c40830157ad27adab4, type: 3}
+  LanceroCampoP2: {fileID: -2339080213181276540, guid: f32d78fb641b28948a43ee86b4fb62b4, type: 3}
+  NigromanteCampoP2: {fileID: 1566883245169246700, guid: e91b454b5dd40054a9fdee118dacabf7, type: 3}
+  AlquimistaCampoP2: {fileID: -6440642532878190624, guid: c27467e9ce5efa74c81fd4340f255550, type: 3}
+  PistoleroCampoP2: {fileID: 5125577293274593351, guid: 171d36bbb0a48ab4a9f80a416a0e285b, type: 3}
+  EscuderoCampoP2: {fileID: 6956735838521857381, guid: 3253ac4f93940be43b05a70245662fe5, type: 3}
+  DoshachasCampoP2: {fileID: -6378439302919442164, guid: 3e9ddbf7be199634b8d0e0518124fe0a, type: 3}
+  LoboCampoP2: {fileID: -5805465700076503968, guid: a740e366379686943aea6135d5544089, type: 3}
+  CuraCampoP2: {fileID: -8487969541418749570, guid: 4821ef7845cc54a4cafb6aa38aaeb009, type: 3}
+  ArqueroCampoP2: {fileID: -6770660620651124910, guid: bff4ffddd2e16b743ace9a230c0369b5, type: 3}
+  MunecoCampoP2: {fileID: -6760819465195678471, guid: 096bc53c2957b2f4c9692259eb9f5cf1, type: 3}
+  EspadachinCampoP2: {fileID: -1080491561937258819, guid: b380f881f83cd594fb6564bcee0ff8f4, type: 3}
+  DracoCampoP2: {fileID: -4425558671911247265, guid: a01bc897af538794ea0c8321bec1431c, type: 3}
 --- !u!4 &546527849
 Transform:
   m_ObjectHideFlags: 0
@@ -3863,8 +3883,8 @@ Transform:
   m_GameObject: {fileID: 679152670}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.3100004, y: 0.29, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 2.3100004, y: 0.3, z: 0}
+  m_LocalScale: {x: 2, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -3955,8 +3975,8 @@ Transform:
   m_GameObject: {fileID: 683575584}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.4400005, y: 0.29, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 7.09, y: 0.3, z: 0}
+  m_LocalScale: {x: 2, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -5152,8 +5172,8 @@ Transform:
   m_GameObject: {fileID: 913059747}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -5.08, y: 0.29, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -5.08, y: 0.3, z: 0}
+  m_LocalScale: {x: 2, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -7585,8 +7605,8 @@ Transform:
   m_GameObject: {fileID: 1718923787}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -7.04, y: 0.29, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -7.4, y: 0.3, z: 0}
+  m_LocalScale: {x: 2, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -7995,8 +8015,8 @@ Transform:
   m_GameObject: {fileID: 1783061570}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.91, y: 0.29, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -2.43, y: 0.3, z: 0}
+  m_LocalScale: {x: 2, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -9173,8 +9193,8 @@ Transform:
   m_GameObject: {fileID: 2144727974}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.27, y: 0.29, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 4.66, y: 0.3, z: 0}
+  m_LocalScale: {x: 2, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}

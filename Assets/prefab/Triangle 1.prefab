@@ -83,7 +83,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 75f5f34dc1b5347e0b8351032682f224, type: 3}
-  m_Color: {r: 0.13578588, g: 1, b: 0, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -107,13 +107,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Peleador
   jugadorDueno: 1
   indiceCasilla: 0
+  faccion: F1
+  esSimulacion: 0
   nombrePeleador: Guerrero
   vida: 100
+  vidaMax: 100
   ataque: 25
   habilidades:
   - Golpe fuerte
   fortalezas: Fuego
   debilidades: Agua
+  tiposHabilidad: 00000000i
   alturaSobrePeleador: 1.8
   tamanoPanel: {x: 240, y: 170}
   panelHabilidades: {fileID: 0}
@@ -123,8 +127,7 @@ MonoBehaviour:
   textoHabilidades: {fileID: 0}
   botonesHabilidad: []
   colorHabilidadUsada: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  colorAtacanteSel: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   porcentajeAcierto: 0.1
   porcentajeFallo: 0.1
-  tiposHabilidad: 00000000i
   atacoEnPelea: 0
-  colorAtacanteSel: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}

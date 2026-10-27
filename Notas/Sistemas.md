@@ -1,6 +1,6 @@
 # Sistemas del juego
 
-> Actualizado 2026-10-19 — verificado contra `Assets/Scripts/`.
+> Actualizado 2026-10-27 — verificado contra `Assets/Scripts/`.
 
 ## Organización de scripts (carpetas separadas)
 - `Assets/Scripts/Combate/`: los 10 del juego de cartas (Moneda, Gestor, Temporizador, MazoFaccion, DatosFacciones, CartaSeleccion, CartaHover, Peleador, QuizHabilidades, GaleriaArte).
@@ -30,12 +30,12 @@
 - `GestorTurnos.cs`: fases 0-5, `jugadorInicial`, `IniciarJuego()`, `PasarTurno()`, `IniciarPelea()`, `VerificarFin()`, `NuevaRonda()` (tick efectos + reinicio), `TerminarJuego()` (texto turno + resultado, apaga timer y botón). Dueño auto por array + nombre (`AsignarDuenos`), conteo escena (`ContarCartasEscena`). `faccionP1/faccionP2` (default F1/F2) + `PuedeUsarCarta()`.
 - `DatosFacciones.cs`: base de datos 20 peleadores x4 habilidades (`InfoHabilidad`: efecto, objetivo, valor, duración, efecto2, robo, fuego) + pasivas (`ContadorDevolver` en Lanza, `ContadorSangre` en Vampiro) + stats. `Get()`, `GetStats()`, `Clave()`, `SpriteDe()` (carga `Resources/Arte/`).
 - `MazoFaccion.cs`: `F1-F4/Random` por grupo (`faccionP1/faccionP2`, `cartasP1/cartasP2`), `Resolver()` + `CargarMazo()` en `Awake`. Llena las 5 cartas (nombre, stats, dueño, facción).
-- `CartaSeleccion.cs`: clic spawnea en primer punto libre (hijo del punto, `indiceCasilla=i`), roja + bloqueada, valida `Button.interactable` + fase 1/2 + turno + facción. Punto ocupado = `childCount>0` o `OverlapCircle 0.4` con Peleador. Tinte F1-F4, sprite auto vía Galería.
+- `CartaSeleccion.cs`: clic spawnea en primer punto libre (hijo del punto, `indiceCasilla=i`), roja + bloqueada, valida `Button.interactable` + fase 1/2 + turno + facción. Punto ocupado = `childCount>0` o `OverlapCircle 0.4` con Peleador. Tinte F1-F4, sprite auto vía Galería (arte de campo según `jugadorDueno`: P1 izquierda / P2 derecha).
 - `CartaHover.cs`: panel `sortingOrder 100`, sube 100, trae al frente. Muestra vida/ataque + 4 Habs desde `DatosFacciones`. Sin fortalezas/debilidades; bloqueado si usada o apagada.
 - `Peleador.cs`: motor de efectos + esquiva por Velocidad (máx 40%, Puntería la ignora, Lentitud la quita) + barra de vida encima (WorldSpace, sorting 50, verde/amarillo/rojo). Stats y 4 Habs desde `DatosFacciones` (también en Inspector con `OnValidate`). Panel auto sorting 100 (240x170 +34 por hab), hover/clic fija y bloquea otros (`seleccionadoActual`), gris al preparar, quiz ±10%, pelea Fase 5. `TickRonda()` aplica dots/Hot y baja duraciones.
 - `QuizHabilidades.cs`: banco editable (40 preguntas en código), panel sorting 200 (400x350), pregunta random, 4 botones, callback `bool correcta`. Sin banco → auto-correcta.
 - `Temporizador.cs`: 30s, `gestor` auto (`FindFirstObjectByType`), `TiempoAgotado()` → `PasarTurno()`, `Iniciar/Pausar/Reanudar`.
-- `GaleriaArte.cs`: singleton `Instance` en objeto "Galeria" escena. 20 sprites carta + 20 campo (si campo vacío usa carta). `Get(nombre, enCampo)` + `Buscar()` con fallback a `Resources/Arte/`. Usado por carta y por spawn en campo.
+- `GaleriaArte.cs`: singleton `Instance` en objeto "Galeria" escena. 20 sprites carta + 20 campo P1 "izquierda" (`XxxCampo`) + 20 campo P2 "derecha" (`XxxCampoP2`). `Get(nombre, enCampo, jugador)` + `Buscar(nombre, enCampo, jugador)` con fallback: campo P2 vacío → campo P1 → carta → `Resources/Arte/`. El jugador que invoca decide el lado (1=izq, 2=der).
 
 ## Datos
 - Ver [[Cartas-Heroes]] para cartas y [[Facciones]] para los 20 (stats y efectos verificados).

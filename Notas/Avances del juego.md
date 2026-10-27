@@ -1,6 +1,6 @@
 # Avances del juego
 
-> Actualizado 2026-10-19 — nota maestra. Detalle en [[Sistemas]], [[Cartas-Heroes]] y [[Facciones]].
+> Actualizado 2026-10-27 — nota maestra. Detalle en [[Sistemas]], [[Cartas-Heroes]] y [[Facciones]].
 
 ## 0. Online (NUEVO 2026-10-19 — Guía Lab #9, multijugador asíncrono)
 - **Carpeta nueva:** `Assets/Scripts/Online/` (`RegistroDefensivo`, `ClienteNube`, `SimuladorBatalla`, `PanelRegistros`). Los 10 de combate se movieron a `Assets/Scripts/Combate/` (antes quedaban en la carpeta renombrada `Assets/ScriptsVillena/`).
@@ -15,7 +15,7 @@
 - **Quizzerttack** — Unity 2D URP, card-battler estilo PvZ Heroes, 2 jugadores local.
 - **Escena:** `Assets/Scenes/SampleScene.unity` — 10 cartas (5 P1 + 5 P2), 6 puntos (`puntosLuchadores`, 3 por lado, `indiceCasilla` 0-2), Canvas, Galería, Gestor, Moneda, Quiz, Timer.
 - **Scripts:** combate en `Assets/Scripts/Combate/` (10: `MonedaInicial`, `GestorTurnos`, `Temporizador`, `MazoFaccion`, `DatosFacciones`, `CartaSeleccion`, `CartaHover`, `Peleador`, `QuizHabilidades`, `GaleriaArte`) + online en `Assets/Scripts/Online/` (4).
-- **Prefabs:** `Assets/prefab/Triangle` x2 (placeholder héroe). **Arte:** `Assets/Dibujo y artes/` + `GaleriaArte` (20 carta + 20 campo).
+- **Prefabs:** `Assets/prefab/Triangle` x2 (placeholder héroe). **Arte:** `Assets/Dibujo y artes/` + `GaleriaArte` (20 carta + 20 campo P1 + 20 campo P2).
 
 ## 2. Loop verificado
 - **Fase 0 Moneda:** gira 2.5s a 720°/s, texto quién primero/segundo, espera 1.5s, oculta y `IniciarJuego(primero)`. Cartas apagadas, timer pausado.
@@ -27,7 +27,7 @@
 
 ## 3. Cartas (resumen [[Cartas-Heroes]])
 - Mazo `F1-F4/Random` en `Awake`, 5 cartas por jugador con nombre+stats+dueño+facción.
-- Tinte: F1 rojo, F2 azul, F3 verde, F4 amarillo. Sprite auto vía `GaleriaArte.Buscar`.
+- Tinte: F1 rojo, F2 azul, F3 verde, F4 amarillo. Sprite auto vía `GaleriaArte.Buscar` (en mano igual para ambos; en campo según jugador).
 - Un uso → roja + bloqueada. Spawn en primer punto libre (`childCount==0` + sin Peleador en 0.4). `indiceCasilla=i`.
 - Hover sube 100, panel vida/ataque/4 habs desde `DatosFacciones`. Sin fortalezas/debilidades (legacy `Fuego/Agua` no se usa).
 - Clic válido solo en fase 1/2 + tu turno + tu facción (`PuedeUsarCarta`).
@@ -41,7 +41,7 @@
 
 ## 5. Quiz / Galería
 - `QuizHabilidades`: 40 preguntas en `banco` (pregunta + 4 resp + índice), random, panel 400x350.
-- `GaleriaArte`: objeto "Galeria" con 20 + 20 campo. `Buscar(nombre, enCampo)` con fallback `Resources/Arte/`.
+- `GaleriaArte`: objeto "Galeria" con 20 carta + 20 campo P1 (izquierda) + 20 campo P2 (derecha). `Buscar(nombre, enCampo, jugador)` con fallback: campo P2 → campo P1 → carta → `Resources/Arte/`.
 
 ## 6. Estado actual (verificado código y escena)
 - [x] Combate: hover, moneda, 5 fases, quiz, timer, pelea carril, verificación/nueva ronda
@@ -60,3 +60,4 @@
 - 20 peleadores con 4 habilidades en DatosFacciones + motor de efectos
 - Stats equilibradas, esquiva por velocidad/agilidad, barra de vida encima
 - MazoFaccion F1-F4/Random, facción fija, hover sin fortalezas, 10 cartas configuradas
+- 2026-10-27: arte de campo por jugador — GaleriaArte con `XxxCampo` (P1, lado izquierdo) y `XxxCampoP2` (P2, lado derecho); `CartaSeleccion` pasa `jugadorDueno` al spawnear y el lado decide la imagen (fallback P2→P1→carta)

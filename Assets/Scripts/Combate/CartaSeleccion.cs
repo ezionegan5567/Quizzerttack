@@ -48,7 +48,9 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
         if (usarSpriteDelPrefab && imagenCarta != null && prefabHeroe != null)
         {
             Sprite art = imagenPeleador;
-            if (art == null) art = GaleriaArte.Buscar(nombreHeroe);
+            // Usar imagen según el lado/jugador: izquierda usa set P1, derecha usa set P2
+            if (art == null) art = GaleriaArte.Buscar(nombreHeroe, true, jugadorDueno);
+            if (art == null) art = GaleriaArte.Buscar(nombreHeroe, false, jugadorDueno);
             if (art == null)
             {
                 SpriteRenderer sr = prefabHeroe.GetComponentInChildren<SpriteRenderer>();
@@ -133,7 +135,9 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
         if (imagenCarta == null) imagenCarta = GetComponent<Image>();
         if (!usarSpriteDelPrefab || imagenCarta == null || prefabHeroe == null) return;
         Sprite art = imagenPeleador;
-        if (art == null) art = GaleriaArte.Buscar(nombreHeroe);
+        // Usar imagen según el lado/jugador: izquierda usa set P1, derecha usa set P2
+        if (art == null) art = GaleriaArte.Buscar(nombreHeroe, true, jugadorDueno);
+        if (art == null) art = GaleriaArte.Buscar(nombreHeroe, false, jugadorDueno);
         if (art == null)
         {
             SpriteRenderer sr = prefabHeroe.GetComponentInChildren<SpriteRenderer>();
@@ -168,7 +172,8 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
             if (heroSr != null)
             {
                 Sprite art = imagenPeleador;
-                if (art == null) art = GaleriaArte.Buscar(nombreHeroe, true);
+                // Player 1 (izquierda) usa su sprite de campo; Player 2 (derecha) el suyo.
+                if (art == null) art = GaleriaArte.Buscar(nombreHeroe, true, jugadorDueno);
                 if (art != null) heroSr.sprite = art;
                 if (heroSr.sprite != null && heroSr.sprite.bounds.size.y > 0f)
                 {

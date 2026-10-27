@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Notas/Cartas-Heroes.md",
+                "file": "Notas/Lab10-Progresion.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Cartas-Heroes"
+              "title": "Lab10-Progresion"
             }
           }
         ]
@@ -118,7 +118,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Notas/Cartas-Heroes.md",
+                "file": "Notas/Lab10-Progresion.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
@@ -190,21 +190,24 @@
   },
   "active": "786a75e48fc6d86c",
   "lastOpenFiles": [
-    "Temp/UnityTempFile-600d9166072d14648be72e82198abb3c",
-    "Temp/UnityTempFile-1fa70e52fce40864d99d93e9e72b73c2",
-    "Temp/UnityTempFile-3fa69be8c13cf5c4080547496d6dd7ab",
-    "Temp/UnityTempFile-2a4d10ad7b3110946a9fa11d0c75cf6f",
-    "Temp/UnityTempFile-5ab22b1892341f54288664660a4167b1",
-    "Temp/UnityTempFile-7f137b1736a605c4ab4b7f093524e1ad",
-    "Temp/UnityTempFile-1ae6b2684015fb844b2f05008739878e",
-    "Temp/UnityTempFile-fb831365a01f9e148bfa3363aa84ff65",
-    "Temp/UnityTempFile-2169be2787c50f745b500a6346300122",
-    "Temp/ADB-Refresh074a8e2c1a894ce428652868af0a294f",
-    "Temp/UnityTempFile-02de922b1f7312f49a9b7f443e37ef33",
+    "Logs/AssetImportWorkerHW0-UDS.log",
+    "Temp/FSTimeGet-ab3e220a85652ea41844deacdd7e791e",
+    "Logs/AssetImportWorkerHW0.log",
+    "Logs/UDS-Service-prev.log",
+    "Logs/Editor-UDS-prev.log",
+    "Logs/AssetImportWorkerHW0-prev.log",
+    "Logs/AssetImportWorkerHW0-UDS-prev.log",
+    "Temp/FSTimeGet-f10c6b0c8070e304bb0376fe63dae1b7",
+    "Library/LibraryInitializing",
+    "Logs/Editor-prev.log",
+    "Temp/UnityLockfile",
+    "Assets/Dibujo y artes/en pelea/alquimista mirando a la derecha 1.png",
+    "Notas/CloudSave-CloudCode.md",
     "Notas/Facciones.md",
-    "Notas/Avances del juego.md",
-    "Notas/Cartas-Heroes.md",
+    "Notas/Lab10-Progresion.md",
     "Notas/Sistemas.md",
+    "Notas/Cartas-Heroes.md",
+    "Notas/Avances del juego.md",
     "Sin título.md",
     "Notas/# Avances del juego## Hoy- Probé hover de carta.md",
     "Avances del juego.md",
