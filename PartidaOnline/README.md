@@ -6,6 +6,8 @@ Módulo Cloud Code **`QuizzerMatch`** + cliente Unity para jugar la partida de Q
 >
 > **Sigue el patrón de TTTXO** (arquitectura de referencia del curso): `CreateMatch` / `JoinMatch` / `PlayMove` / `GetMatchState`, estado como lista de jugadas que se reproduce, push `{type, matchId}` con sondeo de respaldo y `GameProtocol.Version`. Una diferencia importante: el Core se comparte entre el módulo y las pruebas, **pero no con el juego de Unity** (ver *Diferencias con TTTXO*).
 
+> **Para el equipo:** [`docs/PRUEBAS.md`](../docs/PRUEBAS.md) tiene las actividades de prueba (qué probar, pasos, resultado esperado y qué reportar) y [`docs/TAREAS.md`](../docs/TAREAS.md) las tareas para seguir desarrollando, explicadas.
+
 ## Por qué existe
 
 Los Labs 09 y 10 resuelven un combate **asíncrono** contra una defensa guardada, con otra fórmula de combate que no usa el juego. Esto es otra cosa: **dos jugadores conectados juegan la misma partida del GDD**, turno a turno, y cada jugada pasa por el servidor.

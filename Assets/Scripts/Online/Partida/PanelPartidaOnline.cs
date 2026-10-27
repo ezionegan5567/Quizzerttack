@@ -149,6 +149,12 @@ namespace QuizzerAttack.Partida
                 GUILayout.Label("código", GUILayout.Width(50));
                 codigoParaUnirse = GUILayout.TextField(codigoParaUnirse, 6, GUILayout.Width(90));
                 if (GUILayout.Button("Unirse")) _ = Ejecutar(servicio.UnirseAsync(codigoParaUnirse.Trim().ToUpperInvariant(), faccion));
+                // Reconexión: con el código de una partida en curso (tuya o no) se recupera su vista.
+                if (GUILayout.Button("Reanudar"))
+                {
+                    servicio.Reanudar(codigoParaUnirse.Trim().ToUpperInvariant());
+                    _ = Ejecutar(servicio.ConsultarAsync());
+                }
                 GUILayout.EndHorizontal();
             }
             else

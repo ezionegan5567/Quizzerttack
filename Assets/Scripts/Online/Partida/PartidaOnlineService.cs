@@ -143,6 +143,16 @@ namespace QuizzerAttack.Partida
                 { "opcion", opcion },
             });
 
+        /// <summary>
+        /// Reconexión: tras reiniciar el juego sólo hace falta el código. Fija la partida y el llamador
+        /// debe pedir la vista con ConsultarAsync (el servidor reconstruye todo desde su registro).
+        /// </summary>
+        public void Reanudar(string codigo)
+        {
+            Olvidar();
+            CodigoActual = codigo;
+        }
+
         /// <summary>Olvida la partida en curso (no avisa al servidor: para eso está AbandonarAsync).</summary>
         public void Olvidar()
         {
