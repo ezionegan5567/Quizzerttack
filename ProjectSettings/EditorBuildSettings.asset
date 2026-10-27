@@ -8,5 +8,17 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
+  - enabled: 1
+    path: Assets/Scenes/Main Menu.unity
+    guid: d44036972c7d33541bbd8b3eabd2d3a4
+  - enabled: 1
+    path: Assets/Scenes/EscenaOpciones.unity
+    guid: 41bd205bea08e7548b4448fe611d1a8f
+  - enabled: 1
+    path: Assets/Scenes/Guardar datosemail.unity
+    guid: 79638a08027463b418e9ca9f6b3f30e2
+  - enabled: 1
+    path: Assets/Scenes/SeleccionaMazo.unity
+    guid: 3923c8a3781dcbb448d8e8905d3bafec
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
