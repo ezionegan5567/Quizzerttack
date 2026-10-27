@@ -1,0 +1,7 @@
+{
+  "indexConfig": {
+    "fields": [
+      { "key": "trofeos", "asc": false }
+    ]
+  }
+}

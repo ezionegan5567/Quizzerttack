@@ -44,6 +44,9 @@ namespace Tienda
         public string PlayerId { get; set; } = "";
         public string Rival { get; set; } = "";
         public List<string> Equipo { get; set; } = new List<string>();
+        // LAB 10: semilla para la simulacion determinista e idOperacion para la idempotencia.
+        public int Semilla { get; set; } = 0;
+        public string IdOperacion { get; set; } = "";
     }
 
     public class ResultadoCombate
@@ -54,6 +57,12 @@ namespace Tienda
         public int Oro { get; set; }
         public int Trofeos { get; set; }
         public string Mensaje { get; set; } = "";
+        // LAB 10: progresion devuelta al cliente.
+        public int Xp { get; set; }
+        public int Nivel { get; set; }
+        public List<string> Subieron { get; set; } = new List<string>();
+        public List<string> Botin { get; set; } = new List<string>();
+        public bool Repetida { get; set; }
     }
 
     public static class Llaves

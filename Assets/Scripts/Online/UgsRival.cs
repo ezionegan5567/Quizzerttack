@@ -37,13 +37,14 @@ public static class UgsRival
     }
 
     // Paso 6: resolver el combate contra el rival elegido (real o npc)
-    public static async Task<ResultadoCombate> ResolverCombateAsync(string rivalId, List<string> equipoIds)
+    public static async Task<ResultadoCombate> ResolverCombateAsync(string rivalId, List<string> equipoIds, string miAlias = "")
     {
         var req = new Dictionary<string, object>
         {
             { "Rival", rivalId },
             { "Equipo", equipoIds }
         };
+        if (!string.IsNullOrEmpty(miAlias)) req["MiAlias"] = miAlias;
         var res = await CloudCodeService.Instance.CallEndpointAsync<ResultadoCombate>(ScriptCombate, req);
         Debug.Log($"[ResolverCombate] Gano={res.Gano} contra {res.RivalNombre} ({res.Fuente}) oro={res.Oro} trofeos={res.Trofeos} — {res.Mensaje}");
         return res;
@@ -54,6 +55,22 @@ public static class UgsRival
         var req = new Dictionary<string, object> { { "Equipo", ids } };
         var res = await CloudCodeService.Instance.CallEndpointAsync<string>(ScriptInventario, req);
         Debug.Log($"[Inventario] Protegido en el servidor ({ids.Count} héroes). {res}");
+    }
+
+    // Mi bolsa (oro/trofeos acumulados) + últimos ataques recibidos (venganzas)
+    public static async Task<ResumenJugador> MiResumenAsync()
+    {
+        var res = await CloudCodeService.Instance.CallEndpointAsync<ResumenJugador>("T9Resumen", new Dictionary<string, object>());
+        Debug.Log($"[Resumen] bolsa: {res.Bolsa.Oro} oro, {res.Bolsa.Trofeos} trofeos; ataques: {res.Ataques.Count}");
+        return res;
+    }
+
+    // Ranking top-10 por trofeos (índice público trofeos)
+    public static async Task<RankingResultado> RankingAsync()
+    {
+        var res = await CloudCodeService.Instance.CallEndpointAsync<RankingResultado>("T9Ranking", new Dictionary<string, object>());
+        Debug.Log($"[Ranking] {res.Filas.Count} jugador(es) con trofeos.");
+        return res;
     }
 }
 #endif

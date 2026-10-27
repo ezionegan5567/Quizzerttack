@@ -59,3 +59,24 @@ Captura validar del F10 (11:55):
 3. **Módulos C# fallaron por pipeline (endpoints no derivados en el servidor), no por código**; los scripts JS replican el flujo 1:1 y son la alternativa estable hoy. La capa `UgsRival` abstrae la diferencia (solo cambió el endpoint y el tipo de llamada).
 4. **Consultas del índice son baratas y predecibles**: expandir la franja ±2→±4 costó 2 consultas y 4 entradas leídas; el límite de 20 por consulta y el "suficientes=2" evitan sobreconsultas.
 5. **El índice solo indexa datos escritos después de su creación** (error común): creamos el índice primero y las escrituras del F10 ya se indexaron → `rival=pepe` encontrado en 2da franja.
+
+## Integración al juego (IMPLEMENTADA)
+- **`PanelRival.cs` (Assets/Scripts/Online, tecla F8)** — modo online real dentro del juego, montado como componente en "Registros": 6 botones → `Guardar defensa` (publica defensa pública con las 5 cartas P1 + inventario protegido), `Buscar rival` (índice nivel_1), `ATACAR` (pvp en la nube o NPC de práctica si no hubo rivales), `MI RESUMEN` (bolsa + venganzas), `RANKING` (top 10 por trofeos). Edita `miAlias`/`miNivel` en el Inspector.
+- **Economía server-side (T9Combate.js ampliado)**:
+  - **Bolsa del ganador**: dato **PRIVATE** `bolsa {oro, trofeos}` — acumulativo (+100 oro/+10 trofeos por pvp gana); solo el servidor la lee/escribe (el cliente ni la ve).
+  - **Trofeos públicos**: llave **PUBLIC** `trofeos` del atacante = bolsa.trofeos (para el ranking).
+  - **Registro de ataques del defensor**: dato **PROTECTED** `registro_ataques` (últimos 10: {Quien, QuienId, Cuando, Resultado "te venció"/"perdió contra ti"}); se feedea de `MiAlias` param (opcional) que manda el cliente.
+- **Scripts nuevos**: `T9Resumen.js` (bolsa + ataques), `T9Ranking.js` (query índice `trofeos` desc, devuelve Filas top-10) → cliente: `UgsRival.MiResumenAsync()` / `RankingAsync()` (DTOs `ResumenJugador`, `RankingResultado` in Estado.cs).
+- **Venganza**: MI RESUMEN marca al más reciente que "te venció"; si luego pulsas ATACAR, la revancha va directa contra su playerId.
+- **Índice nuevo**: `S09-indice-trofeos.json` → el CLI lo creó con id auto **`trofeos_-1`** (asc=false). Quirks: los campos desc usan solo ops EQ/LT/LE (uso LT 999999 para el top) y el id que genera el CLI viene de key+signo (nivel:true→nivel_1).
+- **Cartas**: quitados los tintes por facción (F1 rosa/F2 azul/F3 verde/F4 amarillo) de `CartaSeleccion.cs` — el arte real manda; carta usada = multiplicar ×0.45 (gris neutro); `ReiniciarCarta` la restaura.
+
+## Plan de integración al juego (Lab09 → modo real)
+Qué se reutiliza tal cual del lab (ya probado):
+- **Al abrir el juego** (primera pantalla): `UgsDefensa.IniciarAsync()` una sola vez (login anónimo del perfil del dispositivo). El perfil "otro"/`CambiarPerfilAsync` queda SOLO para el demo, no para producción.
+- **Al armar el equipo en Combate**: botón **"Guardar defensa en la nube"** → `UgsDefensa.PublicarDefensaAsync` (Nombre = alias del jugador, Nivel = nivel de la cuenta local, Equipo = los 5 héroes de la formación actual, Trofeos = bolsa local). Ya incluye la llave `nivel` que indexa la búsqueda.
+- **Inventario protegido**: cada vez que cambia el inventario del jugador (post-compra/combate), llamamos `UgsRival.PublicarInventarioAsync(ids)` — el servidor escribe la protegida; el cliente jamás la manipula.
+- **Modo "Buscar rival"** (nuevo panel en Combate, junto al PvP local): `UgsRival.BuscarRivalAsync(nivel)` → muestra rival (nombre, nivel, equipo) en `PanelRegistros` → botón **"Atacar"** → `UgsRival.ResolverCombateAsync(rivalId, equipo)` → muestra resultado y suma oro/trofeos localmente; el NPC como fallback si no hay nadie.
+- **Qué NO se toca**: el plan Firebase queda como respaldo; `#if UGS_ON` sigue gobernando que la nube compile o no; la lógica local (`SimuladorBatalla`, `RegistroDefensivo`) se mantiene para el modo sin conexión.
+- **Pendiente de limpieza (no urgente)**: en el dashboard quedan los módulos `TestA` y el C# `Tienda` (roto por pipeline); se puede borrar con `ugs cloud-code modules delete <name>` cuando se quiera dejar solo los 4 scripts (`Sonda`, `T9Buscar`, `T9Combate`, `T9Inventario`).
+- **Visual de cartas**: se quitaron los tintes por facción de `CartaSeleccion.cs` (el arte real manda); la carta usada solo oscurece a gris neutro.

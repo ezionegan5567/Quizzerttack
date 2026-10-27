@@ -19,11 +19,9 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
 
     [Header("Carta usada")]
     public Image imagenCarta;
-    public Color colorOscurecida = new Color(1f, 0.2f, 0.2f, 1f);
 
     [Header("Visual auto del peleador")]
     public bool usarSpriteDelPrefab = true;
-    public bool tenirPorFaccion = true;
     [Header("Arte del peleador (opcional: carta y campo)")]
     public Sprite imagenPeleador;
     public float tamanoPeleador = 1f;
@@ -65,22 +63,7 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
 
         if (imagenCarta != null)
         {
-            colorOriginal = tenirPorFaccion ? TinteFaccion(faccion) : imagenCarta.color;
-            if (boton == null || boton.interactable)
-                imagenCarta.color = colorOriginal;
-        }
-    }
-
-    public static Color TinteFaccion(string f)
-    {
-        if (string.IsNullOrEmpty(f)) return Color.white;
-        switch (f.Trim().ToUpper())
-        {
-            case "F1": return new Color(1f, 0.45f, 0.45f);
-            case "F2": return new Color(0.45f, 0.65f, 1f);
-            case "F3": return new Color(0.5f, 1f, 0.5f);
-            case "F4": return new Color(1f, 0.9f, 0.45f);
-            default: return Color.white;
+            colorOriginal = imagenCarta.color;
         }
     }
 
@@ -124,7 +107,10 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
         usada = true;
         seleccionada = true;
         if (imagenCarta != null)
-            imagenCarta.color = colorOscurecida;
+        {
+            var c = colorOriginal;
+            imagenCarta.color = new Color(c.r * 0.45f, c.g * 0.45f, c.b * 0.45f, c.a);
+        }
     }
 
     public void ReiniciarCarta()
@@ -138,7 +124,7 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
     public void RefrescarVisual()
     {
         if (usada || imagenCarta == null) return;
-        if (tenirPorFaccion) imagenCarta.color = TinteFaccion(faccion);
+        imagenCarta.color = colorOriginal;
     }
 
     // ONLINE: re-lee el sprite para el nombre/facción nuevos (lo llama PanelRegistros).

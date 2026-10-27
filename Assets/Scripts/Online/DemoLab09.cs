@@ -21,6 +21,13 @@ public class DemoLab09 : MonoBehaviour
 
     bool corriendo;
 
+    void Start()
+    {
+        // Auto-montaje del modo online real (F8) si no existe todavía
+        if (FindFirstObjectByType<PanelRival>() == null)
+            gameObject.AddComponent<PanelRival>();
+    }
+
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
     void Update()
     {
@@ -40,38 +47,50 @@ public class DemoLab09 : MonoBehaviour
             return;
         }
         corriendo = true;
+        string paso = "inicio";
         try
         {
             // PASO 1: mi cuenta + mi defensa pública + mi inventario PROTEGIDO
+            paso = "1 IniciarAsync";
             await UgsDefensa.IniciarAsync("principal");
+            paso = "1 SondaAsync";
             await UgsRival.SondaAsync();
             var gestor = Object.FindFirstObjectByType<GestorTurnos>();
             var defensa = CrearDefensaDesdeEscena(gestor, miAlias, miNivel);
+            paso = "1 PublicarDefensaAsync";
             await UgsDefensa.PublicarDefensaAsync(defensa);
             var equipo = new List<string>();
             foreach (var h in defensa.Equipo) equipo.Add(h.Id);
+            paso = "1 PublicarInventarioAsync (propio)";
             await UgsRival.PublicarInventarioAsync(equipo);
             string miId = UgsDefensa.MiPlayerId;
 
             // PASO 1 (segunda computadora emulada): la cuenta rival publica SU defensa e inventario
+            paso = "1 CambiarPerfilAsync('otro')";
             await UgsDefensa.CambiarPerfilAsync("otro");
             var defensaRival = CrearDefensaDesdeEscena(gestor, aliasOtro, nivelOtro);
+            paso = "1 PublicarDefensaAsync (rival)";
             await UgsDefensa.PublicarDefensaAsync(defensaRival);
+            paso = "1 PublicarInventarioAsync (rival)";
             await UgsRival.PublicarInventarioAsync(equipo);
 
             // PASO 2: la cuenta rival lee MI defensa (segunda computadora sin dos PC)
+            paso = "2 LeerDefensaDeAsync";
             var mia = await UgsDefensa.LeerDefensaDeAsync(miId);
             Debug.Log(mia != null
                 ? $"[PASO 2 OK] El perfil 'otro' leyó mi defensa: {mia.Nombre}, {mia.Equipo.Count} héroes."
                 : "[PASO 2] Mi defensa no apareció (¿se publicó?)");
 
             // PASO 2 (verificación): intentar escribir la defensa ajena → 403 code 53
+            paso = "2 VerificarEscrituraAjenaAsync";
             await UgsDefensa.VerificarEscrituraAjenaAsync(miId);
 
             // volver a mi perfil para jugar
+            paso = "2 CambiarPerfilAsync('principal')";
             await UgsDefensa.CambiarPerfilAsync("principal");
 
             // PASO 3-5: BuscarRival (franja que se amplía, cuenta consultas/lecturas)
+            paso = "3-5 BuscarRivalAsync";
             var res = await UgsRival.BuscarRivalAsync(miNivel, franjaMaxima, candidatosSuficientes);
             if (!res.Hubo)
             {
@@ -80,18 +99,38 @@ public class DemoLab09 : MonoBehaviour
             }
 
             // PASO 6: resolver el combate con mi equipo real declarado
+            paso = "6 ResolverCombateAsync (T9Combate)";
             await UgsRival.ResolverCombateAsync(res.RivalPlayerId, equipo);
 
             Debug.Log("[LAB09] Demo completo. Captura la consola para el documento.");
         }
         catch (System.Exception e)
         {
-            Debug.LogError("[LAB09] Falló: " + e.Message);
+            Debug.LogError($"[LAB09] Falló en el PASO '{paso}':\n{DetalleExcepcion(e)}");
         }
         finally
         {
             corriendo = false;
         }
+    }
+
+    // Devuelve el detalle real de una excepción de Cloud Code (el servidor lanzó un error 422)
+    static string DetalleExcepcion(System.Exception e)
+    {
+        var sb = new System.Text.StringBuilder();
+        var cc = e as Unity.Services.CloudCode.CloudCodeException;
+        if (cc != null)
+        {
+            sb.AppendLine($"Reason={cc.Reason} ErrorCode={cc.ErrorCode}");
+            sb.AppendLine(cc.Message); // == ToString(): trae el mensaje que lanzó el script
+        }
+        else
+        {
+            sb.AppendLine($"[{e.GetType().Name}] {e.Message}");
+        }
+        for (var ex = e.InnerException; ex != null; ex = ex.InnerException)
+            sb.AppendLine($"  <-- [{ex.GetType().Name}] {ex.Message}");
+        return sb.ToString();
     }
 
     // Arma DefensaPublica desde las 5 cartas P1 de tu escena (reutiliza RegistroDefensivo)
