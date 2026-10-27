@@ -107,3 +107,11 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# --- PartidaOnline (modulo Cloud Code QuizzerMatch) ---
+# El .gitignore de Unity excluye *.csproj y *.sln: aqui SI se versionan, o el modulo no se puede reconstruir.
+!/PartidaOnline/**/*.csproj
+!/PartidaOnline/*.sln
+# ...pero no los binarios ni la salida de compilacion.
+/PartidaOnline/**/bin/
+/PartidaOnline/**/obj/

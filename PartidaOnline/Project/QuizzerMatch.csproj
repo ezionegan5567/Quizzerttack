@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- net6.0: el mismo target que usan el modulo Tienda y el TurnMatch del curso. -->
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Configurations>Debug;Release</Configurations>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <!-- El nombre del modulo en Cloud Code sale de este archivo: se llamara QuizzerMatch. -->
+    <RootNamespace>QuizzerMatch</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- El Core (reglas, motor de replay, catalogo, vistas) es C# puro y vive fuera de este proyecto, como
+         en TTTXO: el modulo lo COMPILA con Compile Include en vez de duplicarlo. Las pruebas lo ejercitan
+         a traves de este mismo proyecto, asi que prueban exactamente el codigo que se despliega. -->
+    <Compile Include="..\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.26" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
+  </PropertyGroup>
+</Project>
