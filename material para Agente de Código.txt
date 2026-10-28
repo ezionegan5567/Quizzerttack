@@ -1,0 +1,11 @@
+﻿Idea Principal de Quizzerttack
+Es un juego de estrategia y batalla por turnos de 1 contra 1 donde la efectividad de los ataques de tus personajes en el campo de batalla depende directamente de acertar preguntas de trivia bajo presión de tiempo.
+
+
+Enlace del repositorio de GitHub:
+https://github.com/ezionegan5567/Quizzerttack.git
+
+
+
+
+Los Archivos .txt están en el Repositorio con todo lo explicado las instrucciones de desarrollo que nos falta, el GDD tmb esta adentro del Repositorio
