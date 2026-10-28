@@ -4,14 +4,37 @@ using UnityEngine.InputSystem;
 
 public class CardCarousel : MonoBehaviour
 {
-    private List<RectTransform> allCards = new List<RectTransform>();
+    [Header("Configuracion de Desplazamiento")]
+    [Tooltip("Distancia en pixeles que se desplaza todo el mazo por cada paso")]
+    public float stepSize = 130f;
+
+    [Tooltip("Indice inicial (por ejemplo 8 para empezar centrado)")]
+    public int currentIndex = 8;
+
+    [Tooltip("Indice minimo (izquierda maxima)")]
+    public int minIndex = 0;
+
+    [Tooltip("Indice maximo (derecha maxima)")]
+    public int maxIndex = 16;
+
+    [Header("Cartas detectadas automaticamente")]
+    [SerializeField] private List<RectTransform> allCards = new List<RectTransform>();
+
     private InputSystem_Actions inputs;
+    private Vector2 initialContainerPosition;
+    private RectTransform containerRect;
 
     private void Awake()
     {
         inputs = new InputSystem_Actions();
 
-        // Detecta automaticamente las cartas hijas sin romper la serializacion de Unity
+        containerRect = GetComponent<RectTransform>();
+        if (containerRect != null)
+        {
+            // Guardamos la posicion base
+            initialContainerPosition = containerRect.anchoredPosition;
+        }
+
         foreach (Transform child in transform)
         {
             RectTransform rect = child.GetComponent<RectTransform>();
@@ -20,6 +43,12 @@ public class CardCarousel : MonoBehaviour
                 allCards.Add(rect);
             }
         }
+    }
+
+    private void Start()
+    {
+        // Actualizamos la posicion inicial basada en el indice de arranque (ej. 8)
+        UpdateCarouselPosition();
     }
 
     private void OnEnable()
@@ -41,46 +70,49 @@ public class CardCarousel : MonoBehaviour
 
     private void OnNextCardPerformed(InputAction.CallbackContext context)
     {
-        NextCard();
+        MoveRight(); // D / Flecha Derecha
     }
 
     private void OnPreviousCardPerformed(InputAction.CallbackContext context)
     {
-        PreviousCard();
+        MoveLeft(); // A / Flecha Izquierda
     }
 
-    public void NextCard()
+    public void MoveRight()
     {
-        if (allCards.Count <= 1) return;
-
-        RectTransform firstCard = allCards[0];
-        allCards.RemoveAt(0);
-        allCards.Add(firstCard);
-
-        UpdateCardVisuals();
-        Debug.Log("Carrusel movido a la siguiente posicion.");
-    }
-
-    public void PreviousCard()
-    {
-        if (allCards.Count <= 1) return;
-
-        RectTransform lastCard = allCards[allCards.Count - 1];
-        allCards.RemoveAt(allCards.Count - 1);
-        allCards.Insert(0, lastCard);
-
-        UpdateCardVisuals();
-        Debug.Log("Carrusel movido hacia atras.");
-    }
-
-    private void UpdateCardVisuals()
-    {
-        for (int i = 0; i < allCards.Count; i++)
+        if (currentIndex < maxIndex)
         {
-            if (allCards[i] != null)
-            {
-                allCards[i].SetSiblingIndex(i);
-            }
+            currentIndex++;
+            UpdateCarouselPosition();
+            Debug.Log("Mazo movido a la derecha. Indice actual: " + currentIndex);
+        }
+        else
+        {
+            Debug.Log("Llegaste al limite maximo de la derecha (" + maxIndex + ").");
+        }
+    }
+
+    public void MoveLeft()
+    {
+        if (currentIndex > minIndex)
+        {
+            currentIndex--;
+            UpdateCarouselPosition();
+            Debug.Log("Mazo movido a la izquierda. Indice actual: " + currentIndex);
+        }
+        else
+        {
+            Debug.Log("Llegaste al limite minimo de la izquierda (" + minIndex + ").");
+        }
+    }
+
+    private void UpdateCarouselPosition()
+    {
+        if (containerRect != null)
+        {
+            // Calculamos la posicion restando o sumando segun el desplazamiento respecto al inicio
+            float targetX = initialContainerPosition.x - ((currentIndex - 8) * stepSize);
+            containerRect.anchoredPosition = new Vector2(targetX, initialContainerPosition.y);
         }
     }
 }
