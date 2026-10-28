@@ -1,0 +1,324 @@
+========================================================================
+ GUARDADO DE DATOS E INFORMACION  (idea de diseño — LAB 11)
+ Quizzerttack / modulo Cloud Code "Tienda"
+ Complementa: "Elegir modo de combate antes de una pelea" y Lab 10
+========================================================================
+
+QUE QUIERO HACER
+----------------
+Que el jugador tenga una FICHA que se guarde de verdad en el servidor y que
+no se pueda falsificar. Esa ficha muestra su informacion de partidas:
+
+  * su NIVEL y experiencia de cuenta,
+  * cuantas PARTIDAS ha jugado,
+  * cuantas ha GANADO y cuantas ha PERDIDO (y su % de victoria),
+  * cuanto ha ganado en CLASIFICATORIA (puntos y rango),
+  * cual es su FACCIÓN MAS USADA,
+  * y algun extra de merito: racha, héroe mas usado, oro total ganado.
+
+Hoy el Lab 10 ya guarda el nivel y el oro, pero NO guarda el historial de
+partidas ni la faccion. El Lab 11 es exactamente eso: HISTORIAL Y FICHA.
+
+Es la continuacion natural: el Lab 10 responde "que gano al ganar", el Lab 11
+responde "que tanto he jugado y que tan bien me ha ido".
+
+------------------------------------------------------------------------
+ 1) QUE DATOS SE GUARDAN (y de donde sale cada uno)
+------------------------------------------------------------------------
+ CAMPO                    | EJEMPLO        | DE DONDE SALE
+--------------------------+----------------+--------------------------------
+ nivelCuenta              | 3              | YA EXISTE (perfil.nivelCuenta, Lab 10)
+ experiencia              | 190            | YA EXISTE (perfil.experiencia, Lab 10)
+ partidasJugadas          | 27             | NUEVO  (+1 por combate resuelto)
+ partidasGanadas          | 18             | NUEVO  (+1 si victoria)
+ partidasPerdidas         | 9              | NUEVO  (+1 si derrota)
+ partidasManual           | 21             | NUEVO  (modo largo)
+ partidasRapidas          | 6              | NUEVO  (modo automatico)
+ puntosClasificatoria     | 315            | NUEVO  (sube/baja por resultado)
+ mejorClasificatoria      | 340            | NUEVO  (pico historico, nunca baja)
+ rango                    | Oro            | CALCULADO en el servidor
+ rachaActual              | 4              | NUEVO  (victorias seguidas)
+ mejorRacha               | 7              | NUEVO  (nunca baja)
+ faccionMasUsada          | F1             | CALCULADO (la que mas veces eligio)
+ facciones: {F1:14, F2:6, F3:5, F4:2} | | NUEVO (contador por faccion)
+ heroeMasUsado            | guerrero_del_hacha | CALCULADO (mas veces en el equipo)
+ oroGanadoTotal           | 1450           | NUEVO  (acumulado, no el saldo)
+ trofeosTotales           | 62             | NUEVO  (acumulado)
+ ultimaPartidaUtc         | 2026-10-27 22:14 | NUEVO (lo pone el servidor)
+ turnosJugadosTotal       | 512            | NUEVO (suma de turnos de todos los combates)
+
+IMPORTANTE: el porcentaje de victoria NO se guarda, se calcula:
+  %Victoria = partidasGanadas / partidasJugadas * 100
+Guardar un dato calculado es la forma mas facil de que quede desincronizado
+(si guardas 66 % y luego ganas una partida, ese numero ya miente).
+
+------------------------------------------------------------------------
+ 2) ESQUEMA JSON PROPUESTO (llave protegida "estadisticas")
+------------------------------------------------------------------------
+Se añade como 7.ª llave protegida del jugador:
+
+  "estadisticas": {
+    "partidasJugadas":     27,
+    "partidasGanadas":     18,
+    "partidasPerdidas":     9,
+    "partidasManual":      21,
+    "partidasRapidas":      6,
+    "clasificatoria":      315,
+    "clasificatoriaMax":   340,
+    "rachaActual":          4,
+    "mejorRacha":           7,
+    "facciones":     { "F1": 14, "F2": 6, "F3": 5, "F4": 2 },
+    "heroes":        { "guerrero_del_hacha": 18, "vampiro": 12, "draconiano": 9 },
+    "oroTotal":           1450,
+    "trofeosTotales":       62,
+    "turnosTotales":       512,
+    "ultimaPartidaUtc":   "2026-10-27 22:14"
+  }
+
+Va dentro de la misma escritura atómica que las otras 6 llaves protegidas:
+  inventario | operaciones | perfil | progreso | saldos | ultimo_combate | estadisticas
+
+------------------------------------------------------------------------
+ 3) REGLAS DE NEGOCIO (como cambia cada numero)
+------------------------------------------------------------------------
+ A) PARTIDAS
+    partidasJugadas +1 por cada combate resuelto en el servidor.
+    partidasGanadas +1 si Gano, partidasPerdidas +1 si no.
+    partidasManual / partidasRapidas +1 segun el modo elegido
+    (ver el otro documento: "manual" y "automatico").
+
+ B) RACHA
+    si gana:   rachaActual +1 ; mejorRacha = max(mejorRacha, rachaActual)
+    si pierde: rachaActual = 0
+
+ C) CLASIFICATORIA (la parte "cuanto gano en clasificatoria")
+    Formula propuesta:
+        victoria -> +25 puntos
+        derrota  -> -15 puntos
+        suelo    -> nunca baja de 0
+        techo    -> sin techo (o 3000 por temporada)
+    El MODO RÁPIDO paga la mitad (ya vimos que paga 50 % de oro y trofeos):
+        victoria rapida -> +12   (-13 si redondeamos hacia arriba)
+        derrota rapida  -> -7
+    mejoresClasificatoria = max(mejorClasificatoria, clasificatoria)
+
+    RANGOS (calculados, no guardados):
+        0    -  99   -> Bronce
+        100  - 299   -> Plata
+        300  - 599   -> Oro
+        600  - 1199  -> Platino
+        1200 +       -> Diamante
+
+    Ejemplo con los datos de arriba: 315 puntos -> rango ORO.
+
+ D) FACCIÓN MAS USADA
+    El equipo tiene una faccion dominante (en este proyecto las facciones son
+    F1..F4 y el jugador tiene una faccion fija por partida: GestorTurnos.faccionP1).
+    Regla: +1 al contador de la faccion con la que se jugo la partida.
+    faccionMasUsada = la clave con el contador mas alto (empate -> la primera).
+    El servidor SOLO acepta F1, F2, F3 o F4: cualquier otro texto se rechaza
+    (si no, un cliente modificado podria guardar la faccion "hack").
+
+ E) HÉROE MAS USADO
+    +1 por cada héroe del equipo declarado en la partida (solo si ese héroe
+    existe en el inventario protegido, igual que hace hoy ResolverCombate).
+
+ F) ÚLTIMA PARTIDA
+    ultimaPartidaUtc la pone SIEMPRE el servidor (nunca el reloj del cliente).
+
+------------------------------------------------------------------------
+ 4) POR QUE PROTEGIDA Y NO PUBLICADA POR EL CLIENTE
+------------------------------------------------------------------------
+ - Si el cliente pudiera escribir "estadisticas", en 10 segundos tendria
+   999 partidas ganadas y 5000 puntos de clasificatoria.
+ - Por eso vive en la clase PROTECTED: la escribe solo Cloud Code con su
+   token de servicio, y el jugador solo la puede LEER.
+ - Para que el jugador la lea desde Unity hay que usar
+   LoadOptions(new ProtectedReadAccessClassOptions())  (el mismo detalle que
+   ya nos costo tiempo en el Lab 10).
+
+------------------------------------------------------------------------
+ 5) QUE SE PUEDE HACER CON ESOS DATOS (para que sirve guardarlos)
+------------------------------------------------------------------------
+   * Pantalla "MI FICHA": nivel, partidas, ganadas, %, clasificatoria, rango,
+     faccion favorita, racha y mejor racha.
+   * Matchmaking: emparejar por clasificatoria o por nivel (Lab 09 ya empareja
+     por nivel usando el indice publico).
+   * Ranking: publicar solo clasificatoria y nivel en claves PUBLICAS
+     escritas por el servidor + un indice (como nivel_1 / trofeos_1 del Lab 09).
+   * Recompensas por hitos: "10 victorias", "racha de 5", "1000 de clasificatoria".
+   * Balance del juego: ver que faccion se usa mas (si F4 casi no se usa, esta
+     débil) y en que modo juega la gente.
+
+------------------------------------------------------------------------
+ 6) COMO SE RELACIONA CON EL LAB 09
+------------------------------------------------------------------------
+ El Lab 09 aporta:
+   * el modelo de acceso (publico / protegido / privado) y la prueba del 403:
+     exactamente el argumento de por que "estadisticas" debe ser PROTECTED;
+   * el indice publico y las consultas por franja (nivel_1): el mismo patron
+     sirve para un indice de CLASIFICATORIA;
+   * T9Ranking.js, que ya arma un ranking leyendo un dato del jugador: hoy usa
+     "trofeos" (y ese dato lo puede escribir el cliente, un hueco). El Lab 11
+     lo cierra publicando la clasificatoria desde el servidor;
+   * las validaciones anti-trampa del combate (defensa vacia, heroe_coloso,
+     defensa que declara héroes ajenos): las estadisticas solo se actualizan
+     si el combate paso esas validaciones.
+
+------------------------------------------------------------------------
+ 7) COMO SE RELACIONA CON EL LAB 10
+------------------------------------------------------------------------
+ El Lab 10 ya tiene el unico punto por donde pasan TODOS los resultados:
+    ResolverCombateProgresion  ->  aqui se calcula quien gano.
+ Por eso las estadisticas se actualizan DENTRO de esa misma funcion, despues
+ de calcular la victoria y ANTES de escribir el batch:
+
+   1. leer config + estado (ahora 7 llaves),
+   2. si IdOperacion ya existe -> Repetida = true, NO se cuentan estadisticas,
+   3. simular / comparar poder segun el modo,
+   4. calcular xp, niveles, botin, oro, trofeos,
+   5. ACTUALIZAR ESTADISTICAS (partidas, racha, clasificatoria, faccion),
+   6. escribir las 7 llaves en UN solo batch.
+
+ Consecuencia directa: como la IdOperacion es la misma para el reintento, un
+ reintento de red NO suma una partida de mas. La idempotencia del Lab 10 es
+ tambien la idempotencia de las estadisticas. No hay que inventar nada nuevo.
+
+ Y el modo elegido en la pantalla del otro documento se refleja aqui:
+   partidasManual / partidasRapidas y la mitad de clasificatoria en rapido.
+
+------------------------------------------------------------------------
+ 8) FLUJO COMPLETO (lo que pasa de punta a punta)
+------------------------------------------------------------------------
+ 1. El jugador elige modo de combate (LARGO o RAPIDO).               [Lab 10+]
+ 2. Pelea. El servidor decide la victoria.
+ 3. El servidor actualiza: xp, nivel, oro, trofeos, botin            [Lab 10]
+    + partidas, ganadas, racha, clasificatoria, faccion, heroe usado [Lab 11]
+ 4. Escribe las 7 llaves en un batch atomico (nada a medias).        [Lab 10+11]
+ 5. El cliente pide su ficha y la pinta en el panel "MI FICHA".
+ 6. Si la partida se reintenta con el mismo IdOperacion: no se suma nada.
+
+------------------------------------------------------------------------
+ 9) PANTALLA "MI FICHA" (lo que se muestra al jugador)
+------------------------------------------------------------------------
+   +--------------------------------------------------------------+
+   |  MI FICHA                                                    |
+   |  Nivel 3 (Experiencia 190 / 900)                             |
+   |                                                              |
+   |  Partidas jugadas ........  27                               |
+   |  Ganadas .................  18   (Perdidas: 9)               |
+   |  % de victoria ...........  66 %                             |
+   |                                                              |
+   |  CLASIFICATORIA ..........  315 pts   ->  RANGO ORO          |
+   |  Mejor clasificatoria ....  340 pts                          |
+   |  Racha actual ............  4 victorias seguidas             |
+   |  Mejor racha .............  7                                |
+   |                                                              |
+   |  FACCIÓN MÁS USADA .......  F1  (14 de 27 partidas)          |
+   |  Reparto: F1 14 | F2 6 | F3 5 | F4 2                         |
+   |  Héroe más usado .........  guerrero_del_hacha               |
+   |                                                              |
+   |  Oro ganado total ........  1450                             |
+   |  Trofeos totales .........  62                               |
+   |  Última partida ..........  2026-10-27 22:14                 |
+   +--------------------------------------------------------------+
+
+ Si el jugador es nuevo, la ficha arranca en:
+   partidas 0, ganadas 0, clasificatoria 0 (Bronce), racha 0,
+   faccionMasUsada "-", heroeMasUsado "-".  Nunca en null.
+
+------------------------------------------------------------------------
+ 10) CAMBIOS TECNICOS NECESARIOS (cuando se implemente)
+------------------------------------------------------------------------
+ 1. Tienda/Combate.cs
+      + class EstadisticasEstado  (todos los campos de la seccion 1)
+      + EstadoJugador.Estadisticas
+      + LlavesProgresion.Estadisticas = "estadisticas"
+
+ 2. Tienda/Progression.cs
+      + class ConfigClasificatoria {
+            victoria = 25, derrota = 15, suelo = 0,
+            factorModoRapido = 0.5 }
+      + ReglasProgresion.AplicarResultado(estadisticas, gano, modo, faccion, heroes)
+        -> funcion PURA, sin nube: se puede probar en local con dotnet.
+      + ReglasProgresion.Rango(puntos) -> "Bronce" | "Plata" | "Oro" | ...
+
+ 3. Tienda/Funciones.cs
+      * ResolverCombateProgresion: llamar a AplicarResultado() tras calcular la
+        victoria y antes del batch; añadir la 7.ª llave a LeerEstadoAsync y a
+        EscribirEstadoBatchAsync.
+      * nueva [CloudCodeFunction("MiFicha")] -> devuelve la ficha con el %
+        calculado y el rango ya resueltos (el cliente no calcula reglas).
+      * (opcional) publicar "clasificatoria" y "nivel" como PUBLICAS + indice.
+
+ 4. Tienda/Datos.cs
+      + FichaDto { nivel, experiencia, partidas, ganadas, perdidas,
+                   porcientoVictoria, clasificatoria, rango, mejorClasificatoria,
+                   rachaActual, mejorRacha, faccionMasUsada, heroeMasUsado, ... }
+      + ResolverCombateRequest.Faccion   ("F1".."F4")
+
+ 5. Assets/Scripts/Online/ProgresionCliente.cs
+      + MiFichaAsync()  -> llama MiFicha y la imprime / la pasa a la UI
+      + enviar Faccion y Modo en ResolverCombateProgresionAsync
+
+ 6. UI
+      Panel "MI FICHA" con los campos de la seccion 9.
+      Se puede abrir desde el menu y tambien al terminar cada combate.
+
+------------------------------------------------------------------------
+ 11) QUE CUENTA Y QUE NO (decidir antes de programar)
+------------------------------------------------------------------------
+  * ¿Las partidas contra NPC cuentan igual que las PvP?
+    Propuesta: SI cuentan para partidas y faccion, pero valen MENOS
+    clasificatoria (NPC +10 / -0 ; PvP +25 / -15). Si no, se farmea
+    clasificatoria pegandole al npc_practica_1 toda la tarde.
+  * ¿Las partidas abandonadas cuentan?   Propuesta: NO (sin respuesta del
+    servidor no hay escritura, igual que hoy).
+  * ¿La clasificatoria se reinicia por temporada?   Propuesta: SI, cada
+    temporada, conservando mejorClasificatoria como marca personal.
+  * ¿Se guarda el historial de las ultimas 20 partidas (rival, modo, resultado,
+    puntos)?   Propuesta: SI, en la misma llave, como cola de 20 (igual que
+    operaciones.Ids), para poder mostrar "tus ultimos combates".
+
+------------------------------------------------------------------------
+ 12) ANTI-ABUSO (resumen)
+------------------------------------------------------------------------
+ - Escritura: solo Cloud Code (clase PROTECTED). El cliente solo lee.
+ - Idempotencia: la misma IdOperacion no suma dos partidas.
+ - Facción validada contra la lista F1..F4 en el servidor.
+ - Héroes usados: solo cuentan los que están en el inventario protegido.
+ - Clasificatoria: formula en el servidor; el cliente nunca manda "+25".
+ - Modo rápido: paga la mitad, así que no es un atajo para el ranking.
+ - Reloj: ultimaPartidaUtc lo pone el servidor.
+
+------------------------------------------------------------------------
+ 13) PASOS DE ENTREGA DEL LAB 11 (checklist)
+------------------------------------------------------------------------
+ [ ] 1. Llave "estadisticas" creada y escrita solo por Cloud Code.
+ [ ] 2. AplicarResultado probado en local (misma semilla -> mismos numeros).
+ [ ] 3. ResolverCombateProgresion actualiza y escribe las 7 llaves en batch.
+ [ ] 4. MiFicha devuelve la ficha con % y rango resueltos en el servidor.
+ [ ] 5. Demo en Unity (F12 o boton): jugar 2 combates (uno de cada modo),
+        enseñar la ficha con partidas, ganadas, %, clasificatoria, rango y
+        faccion mas usada.
+ [ ] 6. Captura de consola + captura de la ficha en pantalla.
+ [ ] 7. Prueba de reintento con la misma IdOperacion: la ficha NO cambia.
+ [ ] 8. Zip ApellidoNombre_Lab11.zip (modulo Tienda sin bin/obj + scripts
+        Unity + esta nota).
+
+------------------------------------------------------------------------
+ 14) DECISIONES ABIERTAS
+------------------------------------------------------------------------
+ a) Puntos exactos: ¿+25/-15 (PvP) y +10/-0 (NPC)? ¿Suelo 0 o suelo 100?
+ b) ¿La faccion cuenta por partida o por héroe? (propuesta: por partida, para
+    que "faccion mas usada" tenga sentido).
+ c) ¿Se muestra la ficha a los demas jugadores (perfil publico) o es privada?
+ d) ¿Historial de 20 partidas o solo contadores? (mas datos = mas escritura).
+ e) ¿El % de victoria incluye NPC? (propuesta: si, pero se muestra aparte).
+
+========================================================================
+ IDEA EN UNA LINEA:
+ "El Lab 09 dice quien puede pelear, el Lab 10 paga el combate, y el Lab 11
+  guarda el historial: nivel, partidas, ganadas, clasificatoria y tu faccion
+  favorita — siempre escrito por el servidor y contado una sola vez."
+========================================================================

@@ -1,0 +1,360 @@
+========================================================================
+ GRABACION E HISTORIAL DE PELEA  (idea de diseño — LAB 12)
+ Quizzerttack / modulo Cloud Code "Tienda"
+ Complementa: "Elegir modo de combate antes de una pelea" + "Guardado de
+ datos e informacion" (Lab 11) + Lab 09 / Lab 10
+========================================================================
+
+QUE QUIERO HACER
+----------------
+Que cada pelea quede GRABADA y se pueda volver a ver. No un video: los DATOS
+de la pelea, ronda por ronda, para que el jugador (y el profe) vea:
+
+  * que PELEADOR eligio en cada ronda,
+  * que HABILIDAD uso cada uno y sobre quien,
+  * cuanto DAÑO hizo, a quien golpeo, quien murio,
+  * si acerto o fallo el QUIZ de esa ronda (y cuanto modifico el daño),
+  * como termino (ganador, motivo, puntos, recompensas).
+
+Y ademas un HISTORIAL: la lista de tus ultimas peleas, con su resumen, para
+entrar a cualquiera y ver la repeticion completa.
+
+Diferencia con lo que YA hay:
+  - Lab 09 -> guarda "registro_ataques" del DEFENSOR: solo 10 lineas de
+    "quien me ataco y si me gano". Es el antecedente, pero sin detalle.
+  - Lab 10 -> guarda "ultimo_combate.log": solo los golpes del simulador,
+    en texto plano, y SOLO del ultimo combate. No hay habilidades, no hay
+    elecciones del jugador, no hay historial.
+  - Lab 12 -> grabacion completa + cola de peleas para poder revisarlas.
+
+------------------------------------------------------------------------
+ 1) QUE SE GRABA: CABECERA + EVENTOS
+------------------------------------------------------------------------
+Cada pelea grabada tiene dos partes:
+
+ A) CABECERA (resumen, para la lista del historial)
+      id, fecha, rival, modo (largo/rapido), faccion, resultado,
+      rondas, puntosClasificatoria, recompensas, semilla
+
+ B) EVENTOS (la pelea en si, en orden, uno por linea de tiempo)
+      ronda, tipo, actor, objetivo, habilidad, valor, texto
+
+Regla de diseño: la CABECERA es lo que se lista (barato) y los EVENTOS son lo
+que se reproduce (caro). Asi el historial puede tener 20 peleas resumidas y
+solo una completa en detalle.
+
+------------------------------------------------------------------------
+ 2) TIPOS DE EVENTO (lo que se puede grabar)
+------------------------------------------------------------------------
+ TIPO             | QUE GUARDA                                        | EJEMPLO
+------------------+---------------------------------------------------+-----------------------------------------------
+ INICIO           | rival, modo, faccion, equipos, semilla           | "Empieza: 3 vs 1 (npc_practica_1), modo LARGO"
+ ELECCION         | que héroe eligio/coloco el jugador en esa ronda   | "Ronda 1: eliges guerrero_del_hacha"
+ QUIZ             | acierto/fallo y el modificador aplicado           | "Quiz acertado: daño +25% esta ronda"
+ HABILIDAD        | habilidad elegida, objetivo y valor base          | "guerrero_del_hacha usa Golpe Brutal -> bufeador"
+ GOLPE            | daño final aplicado y vida restante del objetivo  | "bufeador recibe 37 de daño (vida 90 -> 53)"
+ CURACION         | curación aplicada y vida resultante               | "vampiro cura 20 a draconiano (vida 120 -> 140)"
+ EFECTO           | veneno / sangrado / buff / debuff aplicado        | "bufeador queda con VENENO 5 durante 3 rondas"
+ MUERTE           | héroe que llega a 0 de vida                       | "bufeador cae (vida 0)"
+ PLAZO            | se acabo el tiempo de la ronda (Lab online)       | "Ronda 2: plazo vencido, pasa el turno"
+ FIN              | ganador, motivo, recompensas, puntos              | "Ganaste: rival sin héroes en pie (+51 xp, +50 oro)"
+
+Con esto la repeticion se puede pintar como una LINEA DE TIEMPO, no como texto.
+
+------------------------------------------------------------------------
+ 3) ESQUEMA JSON  (2 llaves protegidas nuevas)
+------------------------------------------------------------------------
+ A) "ultima_pelea"  -> la pelea completa, con todos sus eventos.
+
+  "ultima_pelea": {
+    "id": "b1f3c2a4-9d21-4a77-8e0c-1c2d3e4f5a6b",
+    "fechaUtc": "2026-10-27 22:14",
+    "rival": "npc_practica_1",
+    "rivalNombre": "Rival de práctica",
+    "modo": "manual",
+    "faccion": "F1",
+    "semilla": 12345,
+    "resultado": "victoria",
+    "rondas": 5,
+    "equipo": ["guerrero_del_hacha", "vampiro", "draconiano"],
+    "equipoRival": ["bufeador"],
+    "oro": 50, "trofeos": 2, "xp": 51, "botin": ["espada"],
+    "eventos": [
+      { "ronda": 0, "tipo": "INICIO",    "actor": "", "objetivo": "", "habilidad": "", "valor": 0, "texto": "..." },
+      { "ronda": 1, "tipo": "ELECCION",  "actor": "guerrero_del_hacha", "objetivo": "", "habilidad": "", "valor": 0, "texto": "..." },
+      { "ronda": 1, "tipo": "QUIZ",      "actor": "jugador", "objetivo": "", "habilidad": "", "valor": 25, "texto": "..." },
+      { "ronda": 1, "tipo": "HABILIDAD", "actor": "guerrero_del_hacha", "objetivo": "bufeador", "habilidad": "Golpe Brutal", "valor": 42, "texto": "..." },
+      { "ronda": 1, "tipo": "GOLPE",     "actor": "guerrero_del_hacha", "objetivo": "bufeador", "habilidad": "Golpe Brutal", "valor": 37, "texto": "..." },
+      { "ronda": 3, "tipo": "MUERTE",    "actor": "bufeador", "objetivo": "", "habilidad": "", "valor": 0, "texto": "..." },
+      { "ronda": 5, "tipo": "FIN",       "actor": "jugador", "objetivo": "", "habilidad": "", "valor": 51, "texto": "..." }
+    ]
+  }
+
+ B) "historial_peleas" -> cola de 20 resumenes (sin eventos).
+
+  "historial_peleas": {
+    "peleas": [
+      { "id": "b1f3c2a4...", "fechaUtc": "2026-10-27 22:14", "rival": "Rival de práctica",
+        "modo": "manual", "resultado": "victoria", "rondas": 5,
+        "clasificatoria": 25, "oro": 50, "xp": 51 },
+      { "id": "77aa01bc...", "fechaUtc": "2026-10-27 21:58", "rival": "Sombra entrenada",
+        "modo": "automatico", "resultado": "derrota", "rondas": 0,
+        "clasificatoria": -7, "oro": 0, "xp": 6 }
+    ]
+  }
+
+Se suman a las llaves que ya escribe el Lab 10:
+  inventario | operaciones | perfil | progreso | saldos | ultimo_combate
+  + estadisticas (Lab 11)  + ultima_pelea  + historial_peleas
+  -> TODO en el MISMO batch atomico.
+
+Por que dos llaves y no una:
+  - con 20 peleas completas la llave creceria muchisimo y se reescribe entera
+    cada combate (caro);
+  - el historial solo necesita el resumen para listar;
+  - la repeticion se ve de la ultima pelea (una sola) o de la que se pida.
+
+------------------------------------------------------------------------
+ 4) EJEMPLO DE UNA PELEA GRABADA (asi se lee la repeticion)
+------------------------------------------------------------------------
+ PELEA b1f3c2a4  ·  2026-10-27 22:14  ·  Modo LARGO  ·  Facción F1
+ Tu equipo: guerrero_del_hacha, vampiro, draconiano
+ Rival:     Rival de práctica (bufeador)          Semilla: 12345
+
+ RONDA 1
+   · ELECCION  eliges guerrero_del_hacha
+   · QUIZ      acierto  -> daño +25 % en esta ronda
+   · HABILIDAD guerrero_del_hacha usa "Golpe Brutal" sobre bufeador
+   · GOLPE     42 base + 25 % = 37 de daño   (bufeador 90 -> 53)
+   · HABILIDAD bufeador usa "Provocar" sobre guerrero_del_hacha
+   · EFECTO    guerrero_del_hacha queda PROVOCADO (debe atacar a bufeador)
+
+ RONDA 2
+   · ELECCION  eliges vampiro
+   · QUIZ      fallo   -> daño -25 % en esta ronda
+   · HABILIDAD vampiro usa "Mordida" sobre bufeador (28 base - 25 % = 21)
+   · GOLPE     21 de daño                      (bufeador 53 -> 32)
+   · EFECTO    bufeador queda SANGRADO 4 durante 2 rondas
+
+ RONDA 3
+   · ELECCION  eliges draconiano
+   · QUIZ      acierto -> daño +25 %
+   · HABILIDAD draconiano usa "Aliento de fuego" sobre bufeador
+   · GOLPE     30 base + 25 % = 37 de daño     (bufeador 32 -> 0)
+   · MUERTE    bufeador cae (vida 0)
+
+ RONDA 4-5
+   · (el rival no tiene más héroes en pie)
+
+ FIN
+   · Victoria  ·  5 rondas  ·  +51 xp  ·  +50 oro  ·  +2 trofeos  ·  botín: espada
+   · Clasificatoria: +25  (315 -> 340)   ·  Rango: ORO
+
+Eso es "como fue la batalla", con el peleador elegido y la habilidad de cada
+ronda, tal como se pide. El texto de cada linea ("texto") es lo que se pinta;
+los campos actor/objetivo/habilidad/valor son los que permiten pintar iconos,
+barras de vida y colores sin re-parsear frases.
+
+------------------------------------------------------------------------
+ 5) COMO SE VE EN PANTALLA
+------------------------------------------------------------------------
+ A) PANTALLA "HISTORIAL DE PELEAS"  (lista)
+   +-----------------------------------------------------------+
+   |  HISTORIAL DE PELEAS (últimas 20)                         |
+   |-----------------------------------------------------------|
+   |  27/10 22:14  Rival de práctica      LARGO  VICTORIA  +25 |
+   |  27/10 21:58  Sombra entrenada       RÁPIDO DERROTA    -7 |
+   |  27/10 21:30  Coloso de arena        LARGO  VICTORIA  +25 |
+   |  ...                                                      |
+   |            [ VER REPETICIÓN ]  [ VER RESUMEN ]            |
+   +-----------------------------------------------------------+
+
+ B) VISOR DE REPETICIÓN  (la pelea completa)
+   +-----------------------------------------------------------+
+   |  RONDA 3 / 5     [<<] [<] [>] [>>]     1x  2x  4x         |
+   |-----------------------------------------------------------|
+   |  TÚ                         |  RIVAL                      |
+   |  guerrero 115/115  ACTIVO   |  bufeador  32/90  SANGRADO  |
+   |  vampiro  110/110           |                             |
+   |  draconiano 120/120 ACTUANDO|                             |
+   |-----------------------------------------------------------|
+   |  draconiano usa "Aliento de fuego" -> bufeador            |
+   |  Quiz acertado (+25%)  ·  daño 37  ·  bufeador cae        |
+   +-----------------------------------------------------------+
+   Controles: avanzar/retroceder ronda, play automático, velocidad.
+   Se puede pintar SOBRE la escena real (mismos cartones y mismas
+   animaciones) porque los eventos son los mismos que usa la pelea.
+
+------------------------------------------------------------------------
+ 6) COMO SE RELACIONA CON EL LAB 09
+------------------------------------------------------------------------
+ El Lab 09 ya hizo la primera version de esto, sin llamarlo asi:
+   * T9Combate.js escribe "registro_ataques" (PROTECTED del defensor) con
+     las 10 ultimas entradas: {Quien, QuienId, Cuando, Resultado}.
+   * El patron de cola ya esta resuelto alli: leer -> unshift -> slice(0,10).
+   * T9Resumen.js ya lo lee para "venganzas".
+   * Y trae la leccion de acceso: el historial es PROTECTED porque si el
+     cliente pudiera escribirlo se inventaria victorias.
+
+ Lo que el Lab 12 cambia respecto al 09:
+   - guarda el lado del ATACANTE tambien (antes solo el defensor),
+   - guarda DETALLE (ronda, héroe, habilidad, daño) y no solo 4 campos,
+   - guarda 20 peleas resumidas + 1 completa, no 10 lineas.
+
+------------------------------------------------------------------------
+ 7) COMO SE RELACIONA CON EL LAB 10
+------------------------------------------------------------------------
+ El Lab 10 ya produjo casi todo lo necesario:
+   * Combate.cs -> Simulador deja un log "T1: X golpea a Y (-30)".
+     Ese log es la semilla de los eventos: hoy es texto, hay que devolverlo
+     como LISTA DE EVENTOS estructurados (tipo, actor, objetivo, valor).
+   * Funciones.cs -> ResolverCombateProgresion ya junta en un solo sitio
+     resultado + xp + botin + oro y escribe el batch. La grabacion se añade
+     AHI (una linea mas: pelea.Agregar(evento)).
+   * Idempotencia: si la IdOperacion se repite, devuelve Repetida = true y
+     NO se graba otra pelea. Igual que no se suma una partida en el Lab 11.
+   * La "semilla" ya se guarda en ultimo_combate: sirve para reconstruir la
+     pelea si algun dia se quiere (ver seccion 11).
+
+ El Lab 12 no cambia las reglas de premios: solo guarda lo que ya paso.
+
+------------------------------------------------------------------------
+ 8) COMO SE RELACIONA CON LA PARTIDA ONLINE (PartidaOnline/Core)
+------------------------------------------------------------------------
+ El proyecto ya tiene un REPLAY DETERMINISTA en serio:
+   * Estado.cs -> public List<string> RegistroPelea
+   * Vista.cs  -> RegistroPelea (lo que el cliente pinta)
+   * Reglas.cs -> s.RegistroPelea = log; al resolver la pelea de la ronda
+   * Registro.cs -> TipoJugada: Unirse, Colocar, ElegirHabilidad,
+                    ResponderQuiz, Pasar, Abandonar, Plazo
+   * TestProject -> ReplayTests: la misma lista de jugadas da el mismo estado.
+
+ Leccion clave: si se graban las JUGADAS (intenciones) y no solo el resultado,
+la pelea es reproducible; si se graban los EVENTOS (resultado), la pelea se
+puede ver aunque cambien las reglas. Para el historial conviene EVENTOS (es lo
+que se muestra); para la partida online conviene JUGADAS (es lo que se repite).
+
+El formato de evento propuesto aqui debe ser EL MISMO en los tres mundos:
+  local (GestorTurnos/Peleador) | online (Core) | cloud (modulo Tienda)
+Asi el visor de repeticion sirve para los tres sin cambios.
+
+------------------------------------------------------------------------
+ 9) DONDE SE GRABAN LOS EVENTOS (quien es la fuente de verdad)
+------------------------------------------------------------------------
+ - En LOCAL: GestorTurnos (fases) y Peleador (daño/habilidades) emiten un
+   evento por cada cosa que pasa: eleccion, habilidad, golpe, efecto, muerte.
+ - En CLOUD CODE: Simulador.Simular los emite (y el servidor es la unica
+   fuente de verdad).
+ - Si el cliente manda su propia grabacion, EL SERVIDOR LA IGNORA y usa la
+   suya: primero simula, despues graba. Asi nadie puede inventarse una pelea
+   bonita con 999 de daño.
+ - Si en el futuro el cliente juega la pelea localmente (modo largo manual),
+   el cliente manda la SEMILLA y el servidor la re-simula: la grabacion que
+   se guarda es SIEMPRE la del servidor, no la del cliente.
+
+------------------------------------------------------------------------
+ 10) TAMAÑO, LIMITES Y PRIVACIDAD
+------------------------------------------------------------------------
+   * historial_peleas: cola de 20 (como operaciones.Ids del Lab 10).
+   * ultima_pelea: una sola, completa. Si la pelea genera 500 eventos, se
+     guardan los primeros 200 y se marca "truncado": true.
+   * No se guardan nombres de otros jugadores reales mas alla del alias que
+     ya es publico en su defensa.
+   * Quien puede verla: el DUEÑO siempre (lee su llave protegida). El rival
+     ve solo la linea de "registro_ataques" del Lab 09. La repeticion NO es
+     publica por defecto.
+   * Ultimo combate del Lab 10 se mantiene: "ultimo_combate" es el resumen
+     con el que ya se calcula la idempotencia; "ultima_pelea" es el detalle
+     para el visor. No se pisan.
+
+------------------------------------------------------------------------
+ 11) ALTERNATIVA: ¿GUARDAR EVENTOS O SOLO LA SEMILLA?
+------------------------------------------------------------------------
+  Opcion A (propuesta): guardar los EVENTOS.
+    + se puede ver aunque cambien las reglas o el balance,
+    + el visor no depende del simulador,
+    - ocupa mas (una pelea larga puede ser 200 lineas).
+
+  Opcion B: guardar solo semilla + equipos y re-simular al abrir el historial.
+    + ocupa poquisimo,
+    + garantiza que el visor es identico al combate original,
+    - si se cambian las reglas (daño, habilidades, orden), la repeticion
+      muestra una pelea DISTINTA a la que el jugador vivio. Y en un juego que
+      se balancea cada semana, eso pasa siempre.
+
+  Recomendacion: A para "ultima_pelea" (que es lo que se muestra) y B como
+  respaldo si algun dia se quiere guardar 100 peleas sin gastar espacio.
+  Se puede hacer hibrido: guardar eventos de las ultimas 5 y solo semilla de
+  las 15 anteriores.
+
+------------------------------------------------------------------------
+ 12) CAMBIOS TECNICOS NECESARIOS (cuando se implemente)
+------------------------------------------------------------------------
+ 1. Tienda/Combate.cs
+      + class EventoPelea { Ronda, Tipo, Actor, Objetivo, Habilidad, Valor, Texto }
+      + class PeleaGrabada { Id, FechaUtc, Rival, RivalNombre, Modo, Faccion,
+                             Semilla, Resultado, Rondas, Equipo, EquipoRival,
+                             Oro, Trofeos, Xp, Botin, Eventos }
+      + class HistorialPeleas { List<ResumenPelea> Peleas }
+      + EstadoJugador.UltimaPelea / .Historial
+      + LlavesProgresion.UltimaPelea = "ultima_pelea"
+      + LlavesProgresion.Historial  = "historial_peleas"
+      * Simulador.Simular: devolver List<EventoPelea> ademas del log de texto
+        (el log actual se puede GENERAR desde los eventos, no al reves).
+
+ 2. Tienda/Progression.cs
+      + ReglasHistorial.AgregarAlHistorial(historial, resumen, maximo: 20)
+        (pura: leer -> insertar al inicio -> recortar a 20)
+      + ReglasHistorial.Truncar(eventos, maximo: 200)
+
+ 3. Tienda/Funciones.cs
+      * ResolverCombateProgresion: construir PeleaGrabada con los eventos de
+        la simulacion y guardarla antes del batch.
+      * LeerEstadoAsync / EscribirEstadoBatchAsync: añadir las 2 llaves.
+      * nueva [CloudCodeFunction("MiHistorial")]  -> lista de resumenes.
+      * nueva [CloudCodeFunction("VerPelea")]     -> ultima_pelea completa
+        (o por id, buscando en la cola).
+
+ 4. Tienda/Datos.cs
+      + ResumenPeleaDto, PeleaDto / EventoDto (espejo para el cliente).
+
+ 5. Assets/Scripts/Online/
+      + HistorialCliente.cs  -> MiHistorialAsync(), VerPeleaAsync(id)
+      + VisorPelea.cs        -> panel de repeticion (avanzar ronda, play,
+                                velocidad) leyendo los eventos.
+
+ 6. Assets/Scripts/Combate/
+      + un "emisor de eventos" en GestorTurnos/Peleador (solo para el modo
+        largo local). Si el servidor re-simula, la grabacion valida es la suya.
+
+------------------------------------------------------------------------
+ 13) COMO SE DEMUESTRA (checklist de entrega)
+------------------------------------------------------------------------
+ [ ] 1. Pelear una vez y ver que "ultima_pelea" quedo escrita con eventos.
+ [ ] 2. Abrir el visor y avanzar ronda por ronda: se ve la habilidad, el
+        objetivo, el daño y la vida restante de cada ronda.
+ [ ] 3. Ver en la lista del historial las 20 ultimas peleas con su resumen.
+ [ ] 4. Reintentar con la MISMA IdOperacion: NO aparece una pelea nueva en
+        el historial (idempotencia).
+ [ ] 5. Probar una pelea en modo RAPIDO: la grabacion no tiene rondas
+        (0 turnos) y aun asi queda registrada con su resultado.
+ [ ] 6. Captura de consola + captura del visor + zip del laboratorio.
+
+------------------------------------------------------------------------
+ 14) DECISIONES ABIERTAS
+------------------------------------------------------------------------
+ a) ¿Cuantas peleas en el historial?   20 resumenes / 1 completa (propuesta).
+ b) ¿Se pueden ver las peleas de OTROS jugadores?   Propuesta: NO.
+ c) ¿Se guarda el daño exacto o solo los eventos importantes (habilidad y
+    resultado)?   Propuesta: exacto, es lo que hace util el visor.
+ d) ¿El visor se pinta en un panel de UI o sobre la escena real?   Propuesta:
+    panel primero (rapido de hacer), escena real despues (reutiliza animaciones).
+ e) ¿Se permite "compartir" una pelea (una clave publica de solo lectura)?
+    Propuesta: NO en el Lab 12; es un extra para despues.
+
+========================================================================
+ IDEA EN UNA LINEA:
+ "Cada combate deja una grabacion: ronda por ronda, con el héroe elegido, la
+  habilidad usada, el daño y las muertes — guardada por el servidor, contada
+  una sola vez y repetible desde el historial."
+========================================================================

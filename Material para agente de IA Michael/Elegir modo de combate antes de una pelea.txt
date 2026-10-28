@@ -1,0 +1,227 @@
+========================================================================
+ ELEGIR MODO DE COMBATE  (idea de diseño — relacionada con Lab 09 y Lab 10)
+ Quizzerttack / modulo Cloud Code "Tienda"
+========================================================================
+
+QUE QUIERO HACER
+----------------
+Antes de pelear, el jugador elige COMO quiere pelear. Dos botones:
+
+  1) COMBATE LARGO (manual)   -> el jugador juega la pelea de verdad en la
+                                 escena (GestorTurnos / Peleador / QuizHabilidades),
+                                 turno por turno, con su equipo.
+  2) COMBATE RAPIDO (automatico) -> el servidor resuelve la pelea al instante
+                                 comparando poder (como el Lab 09) y devuelve
+                                 el resultado sin que el jugador juegue nada.
+
+REGLA DE ORO: el modo rapido da MENOS recompensas y MENOS experiencia.
+Jugar es el trabajo; resolver automatico es la comodidad. Si el automatico
+pagara igual, nadie jugaria el combate largo y el juego se quedaria sin juego.
+
+------------------------------------------------------------------------
+ 1) LOS DOS MODOS EN UNA TABLA
+------------------------------------------------------------------------
+                        | COMBATE LARGO (manual)   | COMBATE RAPIDO (automatico)
+------------------------+--------------------------+-----------------------------
+ Quien decide la pelea  | El servidor simula con   | El servidor compara poder
+                        | semilla + turnos reales  | (formula del Lab 09)
+ Duracion para el player| La pelea completa        | Instantaneo (1 llamada)
+ Turnos que cuenta      | Los turnos reales (1..30)| 0 turnos
+ Experiencia            | 100 %                    | 40 %  (y sin bonus por turno)
+ Oro                    | 100 %                    | 50 %
+ Trofeos                | 100 %                    | 50 %
+ Botin                  | 1 tirada (40/40/20)      | 0 tiradas (no cae botin)
+ Semilla                | La manda el cliente      | No se usa (no hay azar)
+ Repetible / idempotente| Si, por IdOperacion      | Si, por IdOperacion
+ Sirve para subir niveles| Si (es el camino normal)| Si, pero muy lento
+ Precio de nodos        | Igual                    | Igual (no hay descuento)
+
+Resumen para el jugador, en una frase:
+  "Rapido = menos oro, menos trofeos, menos XP y sin botin. Largo = todo completo."
+
+------------------------------------------------------------------------
+ 2) NUMEROS EXACTOS (con la configuracion actual del Lab 10)
+------------------------------------------------------------------------
+Formula de XP que ya existe (Progression.cs):
+  XP = base + PorTurno * min(turnos, 20)
+  base = 50 si ganas / 15 si pierdes ; PorTurno = 1 ; tope 20 turnos
+
+  COMBATE LARGO   victoria con 11 turnos -> 50 + 11 = 61 XP
+                  victoria con 20 turnos -> 50 + 20 = 70 XP
+                  derrota  con 12 turnos -> 15 + 12 = 27 XP
+
+  COMBATE RAPIDO  victoria  -> 50 * 0.40 = 20 XP   (sin bonus de turnos)
+                  derrota   -> 15 * 0.40 =  6 XP
+                  (redondeo hacia abajo, minimo 1 XP si ganas)
+
+Ejemplo real de la demo (semilla 12345, npc_practica_1, 1 turno):
+  Largo   -> xp +51, oro +50, trofeos +2, botin 1 tirada
+  Rapido  -> xp +20, oro +25, trofeos +1, botin ninguna
+
+Tabla de pagos por rival (valores de TablaRivales.cs):
+  npc_practica_1   Largo: 50 oro / 2 trofeos   Rapido: 25 oro / 1 trofeo
+  npc_practica_2   Largo: 80 oro / 5 trofeos   Rapido: 40 oro / 2 trofeos
+  npc_jefe_1       Largo: 200 oro / 10 trofeos Rapido: 100 oro / 5 trofeos
+  pvp (jugador)    Largo: 100 oro / 10 trofeos Rapido: 50 oro / 5 trofeos
+
+Subida de nivel (no cambia, solo se resiente por la XP reducida):
+  CostoParaSubir(n) = 100 * n^2  ->  nivel 1->2 = 100 XP ; 2->3 = 400 XP
+  En largo un combate da ~51-70 XP ; en rapido ~20 XP.
+  Es decir: subir de nivel jugando en rapido cuesta 3 veces mas combates.
+  Ese es justo el incentivo que se busca.
+
+Nodos (DesbloquearNodo no cambia de precio):
+  TALENTO_ATAQUE_1   100 oro / nivel 1
+  TALENTO_DEFENSA_1  150 oro / nivel 1
+  TALENTO_ATAQUE_2   300 oro / nivel 2 (requiere ATAQUE_1)
+  MAESTRIA           500 oro / nivel 3 (requiere ATAQUE_2 + DEFENSA_1)
+  -> En modo rapido juntar 100 oro son ~4 combates; en largo ~2.
+
+------------------------------------------------------------------------
+ 3) COMO SE RELACIONA CON EL LAB 09
+------------------------------------------------------------------------
+El Lab 09 ya tiene el motor del COMBATE RAPIDO:
+  * T9Combate.js  y  Funciones.cs -> ResolverCombate
+    resuelven la pelea comparando poder:
+        Poder = integrantes * 100 + ataquePromedio * 10
+    y gana quien tenga mas poder. No hay turnos, no hay azar, no hay log.
+  * Ese comportamiento es EXACTAMENTE el "combate automatico".
+  * Ademas el Lab 09 aporta las validaciones anti-trampa que el modo rapido
+    reutiliza tal cual: no pelearse a si mismo, defensa vacia = resultado (no
+    excepcion), inventario protegido obligatorio, heroe_coloso prohibido, y
+    defensa que declara heroes que no estan en el inventario -> excepcion.
+
+Conclusion: el modo rapido NO es codigo nuevo, es el camino que ya existe
+desde el Lab 09. Solo hay que etiquetarlo como "Modo = Automatico" y
+aplicarle los multiplicadores de recompensa.
+
+------------------------------------------------------------------------
+ 4) COMO SE RELACIONA CON EL LAB 10
+------------------------------------------------------------------------
+El Lab 10 ya tiene todo el sistema de premios y de persistencia:
+  * Progression.cs  -> formulas puras (XP, niveles, botin, nodos).
+  * Combate.cs      -> simulador determinista por semilla (turnos, vida final,
+                       battle log). Este es el motor del COMBATE LARGO.
+  * Funciones.cs    -> ResolverCombateProgresion: idempotencia por IdOperacion,
+                       XP, niveles, botin, oro, trofeos y escritura atomica de
+                       las 6 llaves protegidas (inventario, operaciones, perfil,
+                       progreso, saldos, ultimo_combate).
+  * DesbloquearNodo -> gasta el oro ganado.
+
+Lo unico que hay que añadir es EL MULTIPLICADOR POR MODO dentro de
+ResolverCombateProgresion, justo antes de repartir premios. Nada mas.
+
+------------------------------------------------------------------------
+ 5) FLUJO COMPLETO (lo que ve y hace el jugador)
+------------------------------------------------------------------------
+ 1. El jugador entra a pelear y aparece el panel "ELEGI MODO DE COMBATE".
+ 2. Si elige LARGO:
+      - se carga la escena de combate (GestorTurnos + QuizHabilidades),
+      - al terminar, el cliente llama ResolverCombateProgresion con
+        Modo = "manual" + Semilla + IdOperacion,
+      - el servidor RE-SIMULA con esa semilla (no se fia del cliente),
+        saca los turnos reales, paga 100 % y escribe las 6 llaves.
+ 3. Si elige RAPIDO:
+      - no se carga escena; el cliente llama ResolverCombateProgresion con
+        Modo = "automatico",
+      - el servidor resuelve por poder (camino Lab 09), pone Turnos = 0 y
+        paga 40 % XP / 50 % oro / 50 % trofeos / 0 botin.
+ 4. En los dos casos: reintento con la MISMA IdOperacion -> Repetida = true
+    y no se vuelve a premiar (idempotencia del Lab 10).
+ 5. El resultado vuelve con Modo y con el detalle de lo que se pago, para que
+    la UI pueda escribir: "Combate rapido: -60 % de recompensas".
+
+------------------------------------------------------------------------
+ 6) POR QUE EL MODO RAPIDO NO SE PUEDE EXPLOTAR
+------------------------------------------------------------------------
+ - La victoria la decide el SERVIDOR en los dos modos. El cliente nunca manda
+   "gane": manda intencion (rival, equipo, semilla, IdOperacion).
+ - El modo rapido no usa semilla: no hay forma de "re-rollear" la pelea
+   cambiando el numero hasta que salga victoria.
+ - El modo rapido no tira botin: no se puede farmear objetos sin jugar.
+ - La IdOperacion sigue evitando el doble cobro/doble premio por reintentos.
+ - Si el jugador abandona la pelea larga a medias, no hay premio: sin
+   respuesta del servidor no hay escritura de las 6 llaves.
+ - Los precios de los nodos no bajan en modo rapido: la comodidad se paga
+   con tiempo (mas combates para el mismo oro).
+
+------------------------------------------------------------------------
+ 7) CONFIGURACION PROPUESTA (para Remote Config, sin redeployar)
+------------------------------------------------------------------------
+Añadir al JSON de la llave "progresion":
+
+  "modos": {
+    "manual":     { "xp": 1.00, "oro": 1.00, "trofeos": 1.00, "tiradasBotin": 1 },
+    "automatico": { "xp": 0.40, "oro": 0.50, "trofeos": 0.50, "tiradasBotin": 0 }
+  }
+
+Ventaja: si un dia los numeros no cuadran, se ajustan aqui y NO hay que
+redesplegar el modulo. Y como el Lab 10 ya trae defaults en codigo que
+replican el .rc, el juego funciona aunque Remote Config no este publicado.
+
+------------------------------------------------------------------------
+ 8) CAMBIOS TECNICOS NECESARIOS (cuando se implemente)
+------------------------------------------------------------------------
+ 1. Tienda/Datos.cs
+      ResolverCombateRequest  += public string Modo   ("manual" | "automatico")
+      ResultadoCombate        += public string Modo   (para que la UI lo muestre)
+
+ 2. Tienda/Progression.cs
+      + class ConfigModo   { xp, oro, trofeos, tiradasBotin }
+      + class ConfigModos  { manual, automatico }
+      + ConfigProgresion.Modos
+      + ReglasProgresion.FactorModo(cfg, modo)  -> devuelve el ConfigModo
+
+ 3. Tienda/Funciones.cs  (en ResolverCombateProgresion)
+      var modo = (req.Modo == "automatico") ? "automatico" : "manual";   // manual = default
+      if (modo == "automatico")
+          // camino Lab 09: comparar poder, sin Simulador, Turnos = 0
+      else
+          // camino Lab 10: Simulador.Simular(...) como ahora
+      // y luego: xp = (int)(xp * f.xp); oro = (int)(oro * f.oro);
+      //          trofeos = (int)(trofeos * f.trofeos);
+      //          tiradas = f.tiradasBotin  (0 en automatico -> sin botin)
+      // Guardar "modo" tambien dentro de ultimo_combate.
+
+ 4. Assets/Scripts/Online/ProgresionCliente.cs
+      ResolverCombateProgresionAsync(..., string modo)
+
+ 5. UI
+      Panel "ELEGI MODO DE COMBATE" con dos botones:
+        [ COMBATE LARGO ]      -> carga escena de combate
+        [ COMBATE RAPIDO ]     -> llama directo al servidor
+      Texto de aviso bajo el boton rapido:
+        "Recompensas reducidas: 40 % XP, 50 % oro y trofeos, sin botin."
+
+------------------------------------------------------------------------
+ 9) TEXTOS PROPUESTOS PARA LA UI
+------------------------------------------------------------------------
+ Titulo:  ELEGI MODO DE COMBATE
+ Boton 1: COMBATE LARGO
+          "Juega la pelea turno por turno. Recompensas completas."
+ Boton 2: COMBATE RAPIDO
+          "El servidor resuelve al instante. 40 % XP, 50 % oro y trofeos,
+           sin botin."
+ Pie:     "La pelea siempre la resuelve el servidor: el modo no cambia
+           quien gana, solo cuanto ganas."
+
+------------------------------------------------------------------------
+ 10) DECISIONES ABIERTAS (para decidir antes de programar)
+------------------------------------------------------------------------
+ a) ¿El modo rapido tira 0 botin (propuesta actual) o tira 1 con tabla
+    reducida tipo 20/20/60?   -> 0 es mas claro y mas facil de explicar.
+ b) ¿Limite diario de combates rapidos?   -> opcional; ayuda a que el modo
+    largo siga siendo el camino principal.
+ c) ¿Los trofeos del ranking tambien se reducen?   -> propuesta: SI (50 %),
+    para que el ranking refleje merito de juego y no comodidad.
+ d) ¿El modo rapido cuenta para el historial / ultimo_combate?   -> SI, pero
+    con Modo = "automatico" y Log vacio, para que se vea que no hubo pelea.
+ e) ¿Se puede cambiar de modo con la pelea ya empezada?   -> NO: el modo se
+    fija antes de llamar al servidor.
+
+========================================================================
+ IDEA EN UNA LINEA:
+ "Dos formas de pelear, un solo servidor: jugando ganas todo, automatico
+  ganas la mitad (y 40 % de XP), y el Lab 09 es el motor del automatico
+  mientras el Lab 10 es quien paga y guarda."
+========================================================================
