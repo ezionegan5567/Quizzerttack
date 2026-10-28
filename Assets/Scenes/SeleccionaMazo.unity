@@ -598,7 +598,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 363238228}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: CardCarousel, Assembly-CSharp
         m_MethodName: NextCard
         m_Mode: 1
@@ -732,7 +732,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 363238228}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: CardCarousel, Assembly-CSharp
         m_MethodName: PreviousCard
         m_Mode: 1
@@ -2097,7 +2097,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 363238229}
-  - component: {fileID: 363238228}
   m_Layer: 0
   m_Name: Carrusel de Cartas
   m_TagString: Untagged
@@ -2105,39 +2104,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &363238228
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 363238227}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777427f4bcf39ba4eb143cf9caee6cf3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CardCarousel
-  allCards:
-  - {fileID: 758555991}
-  - {fileID: 2023746243}
-  - {fileID: 1584525182}
-  - {fileID: 1910938837}
-  - {fileID: 491375293}
-  - {fileID: 1390079573}
-  - {fileID: 324451263}
-  - {fileID: 103846010}
-  - {fileID: 2016034219}
-  - {fileID: 243957287}
-  - {fileID: 721392313}
-  - {fileID: 360426283}
-  - {fileID: 1232728252}
-  - {fileID: 488532380}
-  - {fileID: 544023525}
-  - {fileID: 2097447140}
-  - {fileID: 1968896334}
-  - {fileID: 911754502}
-  - {fileID: 2020172627}
-  - {fileID: 1722632950}
 --- !u!4 &363238229
 Transform:
   m_ObjectHideFlags: 0
