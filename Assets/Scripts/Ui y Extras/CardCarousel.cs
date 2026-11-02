@@ -4,6 +4,10 @@ using UnityEngine.InputSystem;
 
 public class CardCarousel : MonoBehaviour
 {
+    [Header("Configuración del Carrusel")]
+    [SerializeField] private float cardSpacing = 200f; // Distancia en X entre cartas
+    [SerializeField] private float lerpSpeed = 10f;    // Velocidad de la animación
+
     private List<RectTransform> allCards = new List<RectTransform>();
     private InputSystem_Actions inputs;
 
@@ -11,7 +15,6 @@ public class CardCarousel : MonoBehaviour
     {
         inputs = new InputSystem_Actions();
 
-        // Detecta automaticamente las cartas hijas sin romper la serializacion de Unity
         foreach (Transform child in transform)
         {
             RectTransform rect = child.GetComponent<RectTransform>();
@@ -39,6 +42,22 @@ public class CardCarousel : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        // Anima suavemente las cartas hacia su posición objetivo en X
+        for (int i = 0; i < allCards.Count; i++)
+        {
+            if (allCards[i] != null)
+            {
+                float targetX = i * cardSpacing;
+                Vector2 currentPos = allCards[i].anchoredPosition;
+
+                float newX = Mathf.Lerp(currentPos.x, targetX, Time.deltaTime * lerpSpeed);
+                allCards[i].anchoredPosition = new Vector2(newX, currentPos.y);
+            }
+        }
+    }
+
     private void OnNextCardPerformed(InputAction.CallbackContext context)
     {
         NextCard();
@@ -58,7 +77,6 @@ public class CardCarousel : MonoBehaviour
         allCards.Add(firstCard);
 
         UpdateCardVisuals();
-        Debug.Log("Carrusel movido a la siguiente posicion.");
     }
 
     public void PreviousCard()
@@ -70,7 +88,6 @@ public class CardCarousel : MonoBehaviour
         allCards.Insert(0, lastCard);
 
         UpdateCardVisuals();
-        Debug.Log("Carrusel movido hacia atras.");
     }
 
     private void UpdateCardVisuals()
