@@ -49,6 +49,15 @@ namespace Tienda
         [JsonProperty("experiencia")] public int Experiencia { get; set; }
         [JsonProperty("subieron")] public List<string> Subieron { get; set; } = new List<string>();
         [JsonProperty("botin")] public List<string> Botin { get; set; } = new List<string>();
+
+        // ---- LAB 08: lo congelado de la pelea para poder repetirla igual (paso 7) ----
+        // Equipos + semilla permiten volver a simular en RepetirCombate sin premiar otra vez.
+        [JsonProperty("rival")] public string Rival { get; set; } = "";
+        [JsonProperty("rivalNombre")] public string RivalNombre { get; set; } = "";
+        [JsonProperty("unidadesPropias")] public List<UnidadCombate> UnidadesPropias { get; set; } = new List<UnidadCombate>();
+        [JsonProperty("unidadesRivales")] public List<UnidadCombate> UnidadesRivales { get; set; } = new List<UnidadCombate>();
+        [JsonProperty("battleLog")] public List<EntradaBatallaLog> BattleLog { get; set; } = new List<EntradaBatallaLog>();
+        [JsonProperty("saldoResultante")] public int SaldoResultante { get; set; }
     }
 
     // Agregado que se serializa en las 6 llaves protegidas.

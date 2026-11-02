@@ -86,6 +86,54 @@ namespace Lab09
         public List<string> Subieron { get; set; } = new List<string>();
         public List<string> Botin { get; set; } = new List<string>();
         public bool Repetida { get; set; } = false;
+
+        // ---- LAB08: el combate verificado contra un rival npc (pasos 5-7) ----
+        public bool Victoria { get; set; } = false;
+        public int TurnosJugados { get; set; } = 0;
+        public int Semilla { get; set; } = 0;
+        public string Rival { get; set; } = "";
+        public List<UnidadCombate> EquipoPropio { get; set; } = new List<UnidadCombate>();
+        public List<UnidadCombate> EquipoRival { get; set; } = new List<UnidadCombate>();
+        public List<EntradaBatallaLog> BattleLog { get; set; } = new List<EntradaBatallaLog>();
+        public Recompensa Recompensa { get; set; } = new Recompensa();
+        public int TrofeosCambio { get; set; } = 0;
+        public int SaldoResultante { get; set; } = 0;
+        public bool Repeticion { get; set; } = false;  // RepetirCombate: mismo log, sin premiar
+        public bool Rechazado { get; set; } = false;   // el servidor dijo NO y no escribio nada
+    }
+
+    // Una línea del battle log tal como la manda el servidor.
+    [Serializable]
+    public class EntradaBatallaLog
+    {
+        public int Turno { get; set; }
+        public string Atacante { get; set; } = "";
+        public string Objetivo { get; set; } = "";
+        public int Dano { get; set; }
+        public int VidaRestante { get; set; }
+
+        public override string ToString()
+        {
+            return $"T{Turno} {Atacante} → {Objetivo} -{Dano} (queda {VidaRestante})";
+        }
+    }
+
+    // Un combatiente con la vida INICIAL con la que entró a la pelea.
+    [Serializable]
+    public class UnidadCombate
+    {
+        public string Id { get; set; } = "";
+        public int Vida { get; set; } = 0;
+        public int Ataque { get; set; } = 0;
+        public int Defensa { get; set; } = 0;
+        public int Velocidad { get; set; } = 0;
+    }
+
+    [Serializable]
+    public class Recompensa
+    {
+        public string Moneda { get; set; } = "ORO";
+        public int Cantidad { get; set; } = 0;
     }
 
     // LAB10: respuesta de DesbloquearNodo (paso 9).
