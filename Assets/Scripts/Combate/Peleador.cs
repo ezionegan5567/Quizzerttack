@@ -265,6 +265,10 @@ public class Peleador : MonoBehaviour
     // ============ TURNO / FASE ============
     bool EsMiTurno()
     {
+        // ONLINE: lo decide el servidor (EscenaOnline), no GestorTurnos.
+        if (QuizzerAttack.Partida.ModoOnline.Activo)
+            return QuizzerAttack.Partida.ModoOnline.PuedeElegirHabilidad != null
+                && QuizzerAttack.Partida.ModoOnline.PuedeElegirHabilidad(jugadorDueno, nombrePeleador);
         if (gestor == null)
             gestor = Object.FindFirstObjectByType<GestorTurnos>();
         if (gestor == null) return true;
@@ -320,6 +324,17 @@ public class Peleador : MonoBehaviour
     {
         if (!fijado) return;
         if (habsData == null || indice < 0 || indice >= habsData.Length) return;
+
+        // ONLINE: no hay quiz local. Se avisa al servidor, que sortea la pregunta y devuelve el resultado.
+        if (QuizzerAttack.Partida.ModoOnline.Activo)
+        {
+            fijado = false;
+            if (seleccionadoActual == this) seleccionadoActual = null;
+            OcultarPanel();
+            if (QuizzerAttack.Partida.ModoOnline.AlElegirHabilidad != null)
+                QuizzerAttack.Partida.ModoOnline.AlElegirHabilidad(jugadorDueno, nombrePeleador, indice);
+            return;
+        }
 
         indiceHabilidadElegida = indice;
 
@@ -781,6 +796,17 @@ public class Peleador : MonoBehaviour
 
     // ============ DAÑO / CURA ============
     public bool EstaVivo() { return vida > 0; }
+
+    // ONLINE: el servidor es la autoridad; esto sólo refleja en pantalla lo que dice su vista (lo llama EscenaOnline).
+    // "preparada" = ya eligió habilidad esta ronda (queda bloqueado y atenuado, como en el juego local).
+    public void AplicarVistaOnline(int nuevaVida, int nuevaVidaMax, bool preparada)
+    {
+        vida = nuevaVida;
+        vidaMax = nuevaVidaMax;
+        habilidadUsada = preparada;
+        if (sr != null) sr.color = preparada ? colorHabilidadUsada : colorOriginal;
+        ActualizarBarra();
+    }
 
     void Curar(Peleador t, int cantidad)
     {

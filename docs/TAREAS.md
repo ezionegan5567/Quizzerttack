@@ -46,17 +46,22 @@ Antes de cualquiera: ejecuten `dotnet test PartidaOnline/TestProject` y lean `Pa
 
 ---
 
-## Tarea 3: pintar la partida del servidor en la escena real
+## Tarea 3: completar el modo online de la escena real
 
-**Qué lograr.** El panel F7 es de prueba. La escena real (`GestorTurnos`, `CartaSeleccion`, `Peleador`) debe **dibujar** lo que dice `VistaPartidaDto` en lugar de decidir fases y peleas en local.
+**Qué hay hecho.** Existe un primer modo online en la escena `campo de batalla`: `Assets/Scripts/Online/Partida/EscenaOnline.cs` coloca héroes, actualiza vidas, quita caídos, activa las cartas que se pueden usar y muestra la pregunta del quiz, todo desde la vista del servidor (se activa con el botón *Jugar en la escena* del panel F7). Cuando una prueba de `docs/PRUEBAS.md` (la 14) confirme que funciona en Unity, esta tarea es **convertirlo en parte del juego**. Antes de empezar, lean `EscenaOnline.cs` y `EscenaLogica.cs`: la cabecera dice qué hace y qué no.
 
-**Dónde mirar.** `Assets/Scripts/Online/Partida/PanelPartidaOnline.cs` (método `DibujarPartida`: cómo se lee la vista) y `PartidaOnlineService.cs`.
+**Qué falta, de más fácil a más difícil.**
+1. **Entrada desde el menú, no desde F7.** Un botón "Partida online" en `Main Menu` que cree o una la partida y cargue la escena ya en modo online.
+2. **Elegir facción.** Hoy la escena solo tiene dos manos (F1 y F2), así que hay que jugar F1 contra F2. Piensen cómo permitir cualquier facción: las cartas llevan su `prefabHeroe` asignado en la escena, así que habría que asignar por código el prefab de cada héroe a las cartas de la mano.
+3. **Animar la pelea.** Hoy la pelea llega resuelta y se muestra como texto; la vida cambia de golpe. La vista trae `RegistroPelea` (líneas de texto): conviertan cada línea en un movimiento o un efecto de `Peleador`, sin cambiar daño ni resultado, que ya vienen decididos.
+4. **Dibujar los efectos de estado.** El servidor calcula buffs y debuffs (`Buffs` en cada `PeleadorDto`), pero la escena no los dibuja.
+5. **Volver al modo local sin recargar la escena.** Hoy se desactiva GestorTurnos y hay que recargar para volver. Un `Desactivar()` limpio exigiría guardar y restaurar lo que se silencia.
 
-**Cómo empezar.** Un modo "online" que, en vez de `GestorTurnos` decidiendo, solo reaccione al evento `servicio.VistaRecibida`. Empiecen por lo más pequeño: que al recibir una vista se coloquen los héroes en el campo, sin animaciones. La pelea llega ya resuelta en `RegistroPelea`: solo hay que animarla.
+**Dónde mirar.** `EscenaOnline.cs` (el driver), `EscenaLogica.cs` (la lógica pura y **con pruebas**: cualquier regla de "qué dibujar" nueva va aquí, con su prueba en `PartidaOnline/TestProject/EscenaLogicaTests.cs`), y los ganchos de `Peleador.cs`, `CartaSeleccion.cs` y `ModoOnline.cs` (busquen `ModoOnline.Activo`).
 
-**Cómo saber que está bien.** Dos Editores juegan una partida completa en la escena real, y el cliente no calcula daño, turno ni resultado de ninguna pregunta.
+**Cómo saber que está bien.** Dos Editores juegan una partida completa en la escena real y el cliente no calcula daño, turno ni resultado de ninguna pregunta. Y el juego local sigue igual (actividad 15).
 
-**Qué se aprende.** Qué significa "el cliente solo dibuja", y cómo separar la presentación de las reglas.
+**Qué se aprende.** Qué significa "el cliente solo dibuja": todo lo que cambia el resultado va al servidor y lo que queda en el cliente es presentación. También, cómo añadir un modo nuevo a un juego que ya funciona sin romperlo: ganchos mínimos, apagados por defecto, y la lógica que se puede probar separada de Unity.
 
 ---
 

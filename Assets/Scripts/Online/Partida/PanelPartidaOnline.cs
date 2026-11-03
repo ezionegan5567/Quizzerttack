@@ -165,6 +165,20 @@ namespace QuizzerAttack.Partida
                 if (GUILayout.Button("Abandonar", GUILayout.Width(80))) _ = Ejecutar(servicio.AbandonarAsync());
                 if (GUILayout.Button("Olvidar", GUILayout.Width(70))) servicio.Olvidar();
                 GUILayout.EndHorizontal();
+
+                // Dibuja la partida en la escena real (cartas, casillas y peleadores) en vez de en este panel.
+                // Sólo funciona en la escena "campo de batalla" y con F1 contra F2. Ver EscenaOnline.cs.
+                GUILayout.BeginHorizontal();
+                if (EscenaOnline.Instancia == null)
+                {
+                    if (GUILayout.Button("Jugar en la escena (campo de batalla)"))
+                    {
+                        string error = EscenaOnline.Activar(servicio);
+                        mensaje = error.Length > 0 ? "ERROR: " + error : "Modo escena activado. F7 oculta este panel.";
+                    }
+                }
+                else GUILayout.Label("Modo escena ACTIVO (recarga la escena para volver al juego local)");
+                GUILayout.EndHorizontal();
             }
         }
 
