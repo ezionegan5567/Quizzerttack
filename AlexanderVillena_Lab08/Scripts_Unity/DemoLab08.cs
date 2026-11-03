@@ -135,7 +135,8 @@ public class DemoLab08 : MonoBehaviour
             var res = await CloudCodeService.Instance.CallModuleEndpointAsync<ResultadoCombate>(
                 Modulo, "ResolverCombate", args);
             Debug.Log($"[Lab08][INTENTO {etiqueta}] servidor → Rechazado={res.Rechazado} " +
-                      $"Victoria={res.Victoria} Semilla={res.Semilla} Saldo={res.SaldoResultante} " +
+                      $"Victoria={res.Victoria} Semilla={res.Semilla} " +
+                      $"Saldo={ReproductorCombate.Saldo(res)} " +
                       $"| \"{res.Mensaje}\"");
             return res;
         }

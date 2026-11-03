@@ -61,7 +61,7 @@ public class ReproductorCombate : MonoBehaviour
         if (res == null) return null;
         if (res.Rechazado)
         {
-            Debug.Log($"[Lab08][RECHAZO] El servidor dijo NO: \"{res.Mensaje}\" (no se escribió nada)");
+            Debug.Log($"[Lab08][RECHAZO] El servidor dijo NO: \"{res.Mensaje}\" (saldo {Saldo(res)}, no se escribió nada)");
             return res;
         }
 
@@ -91,7 +91,7 @@ public class ReproductorCombate : MonoBehaviour
         if (res == null) return null;
         if (res.Rechazado)
         {
-            Debug.Log($"[Lab08][Repetición] \"{res.Mensaje}\"");
+            Debug.Log($"[Lab08][Repetición] \"{res.Mensaje}\" (saldo {Saldo(res)})");
             return res;
         }
 
@@ -174,6 +174,12 @@ public class ReproductorCombate : MonoBehaviour
         foreach (var par in _vida)
             if (!_idsPropios.Contains(par.Key)) suma += Mathf.Max(0, par.Value);
         return suma;
+    }
+
+    // El saldo que devuelve un rechazo: -1 significa «no se tocó ni para leer».
+    public static string Saldo(ResultadoCombate res)
+    {
+        return res.SaldoResultante >= 0 ? res.SaldoResultante.ToString() : "sin cambios";
     }
 
     static bool MismoLog(List<EntradaBatallaLog> a, List<EntradaBatallaLog> b)

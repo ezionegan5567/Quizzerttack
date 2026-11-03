@@ -1,0 +1,802 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Unity.Services.CloudCode.Apis;
+using Unity.Services.CloudCode.Apis.Extensions;
+using Unity.Services.CloudCode.Core;
+using Unity.Services.CloudCode.Shared;
+using Unity.Services.CloudSave.Model;
+using Unity.Services.RemoteConfig.Model;
+
+namespace Tienda
+{
+    public class PublicarInventarioRequest { public List<string> Equipo; }
+
+    // DI: cliente de servicios UGS para el módulo (patrón oficial de Cloud Code)
+    public class ModuleConfig : ICloudCodeSetup
+    {
+        public void Setup(ICloudCodeConfig config)
+        {
+            config.AddGameApiClient();
+        }
+    }
+
+    // OJO: Cloud Code NO soporta funciones static. La clase y los [CloudCodeFunction]
+    // deben ser de INSTANCIA (los helpers internos sí pueden ser static).
+    public class Funciones
+    {
+        // ================= PASOS 3-5: BUSCAR RIVAL =================
+        // Franja inicial ±2, paso 2, tope FranjaMaxima. Cada consulta y
+        // cada entrada devuelta se cuentan (se pagan lecturas del índice).
+        [CloudCodeFunction("BuscarRival")]
+        public async Task<BuscarRivalResultado> BuscarRival(IExecutionContext context, IGameApiClient api, BuscarRivalRequest req)
+        {
+            var res = new BuscarRivalResultado();
+
+            // Si no ha publicado defensa (nivel<=0), no busca (tampoco puede ser atacado).
+            if (req.Nivel <= 0)
+            {
+                res.Hubo = false;
+                res.Mensaje = "No has publicado defensa (nivel <= 0): no buscas ni puedes ser atacado.";
+                return res;
+            }
+
+            var candidatos = new List<Candidato>();
+            int consultas = 0, lecturas = 0;
+
+            for (int franja = 2; franja <= req.FranjaMaxima; franja += 2)
+            {
+                int nivelMinimo = req.Nivel - franja;
+                int nivelMaximo = req.Nivel + franja;
+
+                var campos = new List<FieldFilter>
+                {
+                    new FieldFilter("nivel", nivelMinimo, FieldFilter.OpEnum.GE, true),
+                    new FieldFilter("nivel", nivelMaximo, FieldFilter.OpEnum.LE, true)
+                };
+                var consulta = new QueryIndexBody(campos, new List<string> { Llaves.Defensa, Llaves.Nivel }, 0, 20, 0);
+
+                var r = await api.CloudSaveData.QueryPublicPlayerDataAsync(
+                    context, context.ServiceToken, context.ProjectId, consulta);
+                consultas++;
+
+                // Parseo tolerantte del resultado: [{id, data:[{key,value}]}]
+                var json = JsonConvert.SerializeObject(r.Data.Results ?? new List<QueryIndexResponseResultsInner>());
+                var crudos = JsonConvert.DeserializeObject<List<CandidatoCrudo>>(json) ?? new List<CandidatoCrudo>();
+                lecturas += crudos.Count;
+
+                foreach (var c in crudos)
+                {
+                    string id = c.id == null ? "" : c.id.ToString();
+                    DefensaPublica defensa = null;
+                    int nivel = 0;
+                    if (c.data != null)
+                        foreach (var par in c.data)
+                        {
+                            if (par.key == Llaves.Defensa && par.value != null)
+                                defensa = par.value.ToObject<DefensaPublica>();
+                            else if (par.key == Llaves.Nivel && par.value != null)
+                                nivel = Convert.ToInt32(((JValue)par.value).Value);
+                        }
+                    candidatos.Add(new Candidato { Id = id, Nivel = nivel, Defensa = defensa });
+                }
+
+                // Paso 5: excluir al propio jugador (y饪o no soy mi rival)
+                candidatos.RemoveAll(c => c.Id == req.PlayerId);
+
+                res.Franja = franja;
+                if (candidatos.Count >= req.CandidatosSuficientes) break;
+            }
+
+            res.Consultas = consultas;
+            res.LecturasConsumidas = lecturas;
+
+            if (candidatos.Count == 0)
+            {
+                res.Hubo = false;
+                res.Mensaje = $"No hay rivales en la franja final ±{res.Franja}.";
+                return res;
+            }
+
+            // El más cercano en nivel
+            var elegido = candidatos.OrderBy(c => Math.Abs(c.Nivel - req.Nivel)).First();
+            res.Hubo = true;
+            res.RivalPlayerId = elegido.Id;
+            res.Rival = elegido.Defensa;
+            return res;
+        }
+
+        // ================= SERVIDOR ESCRIBE EL INVENTARIO PROTEGIDO =================
+        // [S07] El servidor graba la clave protegida "inventario" del jugador que pide.
+        // El CLIENTE nunca puede escribir esto (está protegido).
+        [CloudCodeFunction("PublicarInventario")]
+        public async Task<string> PublicarInventario(IExecutionContext context, IGameApiClient api, PublicarInventarioRequest req)
+        {
+            var lista = new List<HeroeInv>();
+            if (req != null && req.Equipo != null)
+                foreach (var id in req.Equipo)
+                {
+                    int vida = 100, ataque = 20;
+                    if (TablaRivales.Heroes.TryGetValue(id, out var stats)) { vida = stats.vida; ataque = stats.ataque; }
+                    lista.Add(new HeroeInv { id = id, vida = vida, ataque = ataque });
+                }
+
+            var inventario = new { heroes = lista };
+            await api.CloudSaveData.SetProtectedItemAsync(
+                context, context.ServiceToken, context.ProjectId, context.PlayerId,
+                new SetItemBody(Llaves.Inventario, inventario));
+            return "inventario listo: " + lista.Count + " héroes";
+        }
+
+        // ================= LAB 08: RESOLVER COMBATE (pasos 1-7) =================
+        // Combate de 1 a 3 héroes contra un rival de la tabla. El cliente NO manda
+        // semilla, ni daño, ni resultado: aquí nacen la semilla y el battle log, y la
+        // recompensa y el estado se guardan en UNA sola transacción.
+        const int MaxHeroesPorEquipo = 3;
+
+        [CloudCodeFunction("ResolverCombate")]
+        public async Task<ResultadoCombate> ResolverCombate(
+            IExecutionContext context, IGameApiClient api, List<string> equipo, string idRival)
+        {
+            // 1. La entrada (paso 2): 1..3 héroes, sin repetidos, sin el héroe coloso.
+            if (equipo == null || equipo.Count == 0 || equipo.Count > MaxHeroesPorEquipo)
+                return Rechazo($"El equipo lleva entre 1 y {MaxHeroesPorEquipo} héroes.");
+            if (equipo.Distinct().Count() != equipo.Count)
+                return Rechazo("El equipo no puede llevar el mismo héroe dos veces.");
+            if (string.IsNullOrWhiteSpace(idRival))
+                return Rechazo("Falta el rival (idRival).");
+            if (equipo.Contains(Llaves.HeroeColoso))
+                return Rechazo($"{Llaves.HeroeColoso} no es peleable.");
+
+            // 2. Cloud Save PROTEGIDO con el token del servicio (paso 3): dice QUÉ tienes.
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            foreach (var id in equipo)
+                if (!estado.Inventario.Heroes.Any(h => h.Id == id))
+                    return Rechazo($"{id} no está en tu inventario.", estado.Saldos.Monedas);
+
+            // 3. Remote Config con el token del jugador, las DOS llaves en una petición:
+            //    tabla_heroes dice CUÁNTO vale y rivales_npc dice QUIÉN es el rival.
+            var tablas = await LeerTablasAsync(context, api);
+            var rival = tablas.RivalPorId(idRival);
+            if (rival == null || rival.Equipo == null || rival.Equipo.Count == 0)
+                return Rechazo($"No existe el rival <{idRival}>.", estado.Saldos.Monedas);
+
+            // 4. Los dos equipos, con las stats de la tabla (el cliente no las pone).
+            var propios = ArmarUnidades(equipo, tablas, estado.Inventario);
+            var rivales = ArmarUnidades(rival.Equipo, tablas, null);
+
+            // 5. La semilla nace AQUÍ: el cliente ni la elige ni la conoce de antemano.
+            int semilla = Random.Shared.Next(1, int.MaxValue);
+            var pelea = Batalla.Similar(propios, rivales, semilla);
+
+            // 6. Recompensa y estado, con la MISMA semilla y los equipos congelados.
+            int premio = pelea.Victoria ? rival.Moneda : 0;
+            // LAB 11 (paso 4): los trofeos SUMAN los del rival al ganar y RESTAN la mitad al
+            // perder, con suelo en cero (ReglasProgresion.CambioDeTrofeos).
+            int trofeosCambio = ReglasProgresion.CambioDeTrofeos(
+                estado.Progreso.Trofeos, pelea.Victoria, rival.Trofeos);
+            estado.Saldos.Monedas += premio;
+            estado.Progreso.Trofeos = Math.Max(0, estado.Progreso.Trofeos + trofeosCambio);
+            estado.UltimoCombate = new UltimoCombateEstado
+            {
+                Semilla = semilla,
+                Victoria = pelea.Victoria,
+                Turnos = pelea.TurnosJugados,
+                Rival = rival.Id,
+                RivalNombre = rival.Nombre,
+                Equipos = new List<string>(equipo),
+                UnidadesPropias = pelea.EquipoPropio,
+                UnidadesRivales = pelea.EquipoRival,
+                BattleLog = pelea.BattleLog,
+                SaldoResultante = estado.Saldos.Monedas
+            };
+
+            // 7. Premio + progreso + pelea en UNA sola escritura (o entran los tres o ninguno).
+            await EscribirCombateBatchAsync(context, api, estado);
+
+            // 8. LAB 11 (paso 3): el combate YA está a salvo; ahora se publica el TOTAL en la
+            //    tabla con el token del SERVICIO. Si la tabla falla, el combate no se pierde
+            //    (se manda el total y no la diferencia: el próximo combate la corrige).
+            int puesto = await Ranking.PublicarTrofeosAsync(api, context, context.PlayerId, estado.Progreso.Trofeos);
+
+            var resultado = ResultadoDe(pelea, rival, estado.Saldos.Monedas, false);
+            resultado.TrofeosCambio = trofeosCambio;
+            resultado.PuestoEnRanking = puesto;
+            return resultado;
+        }
+
+        // ================= LAB 08: REPETIR COMBATE (paso 7) =================
+        // Mismo combate, misma semilla y mismos equipos congelados: mismo battle log.
+        // No escribe NADA (ni premio ni estado): solo demuestra el determinismo.
+        [CloudCodeFunction("RepetirCombate")]
+        public async Task<ResultadoCombate> RepetirCombate(IExecutionContext context, IGameApiClient api)
+        {
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            var uc = estado.UltimoCombate;
+            if (uc == null || uc.Semilla == 0 ||
+                uc.UnidadesPropias.Count == 0 || uc.UnidadesRivales.Count == 0)
+                return Rechazo("No hay ningún combate anterior que repetir.", estado.Saldos.Monedas);
+
+            var pelea = Batalla.Similar(uc.UnidadesPropias, uc.UnidadesRivales, uc.Semilla);
+            var rival = new RivalNpc { Id = uc.Rival, Nombre = uc.RivalNombre };
+            return ResultadoDe(pelea, rival, estado.Saldos.Monedas, true);
+        }
+
+        // ================= LAB 11: VISTA DE LA TEMPORADA (paso 9) =================
+        // Cuánto falta para el cierre (reloj del SERVIDOR, no del dispositivo), tu puesto,
+        // tu tier y el premio de la temporada (ese sale de Remote Config).
+        [CloudCodeFunction("VistaTemporada")]
+        public async Task<ResultadoTemporada> VistaTemporada(IExecutionContext context, IGameApiClient api)
+        {
+            var cfg = await Ranking.LeerTemporadaAsync(context, api);
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            var entrada = await Ranking.LeerEntradaAsync(api, context, context.PlayerId);
+            var (cierre, fuente) = await Ranking.LeerCierreAsync(context, cfg);
+
+            int puesto = entrada == null ? 0 : entrada.Rank + 1;   // el servicio cuenta desde 0
+            string tier = !string.IsNullOrEmpty(entrada?.Tier)
+                ? entrada.Tier
+                : ReglasProgresion.TierPorPuesto(puesto);
+
+            return new ResultadoTemporada
+            {
+                Tabla = Ranking.Tabla,
+                Trofeos = estado.Progreso.Trofeos,
+                Puesto = puesto,
+                Tier = tier,
+                CierreUtc = cierre.ToUniversalTime().ToString("o"),
+                SegundosRestantes = Math.Max(0, (long)(cierre - DateTime.UtcNow).TotalSeconds),
+                Premio = ReglasProgresion.PremioDe(cfg, tier),
+                FuenteCierre = fuente
+            };
+        }
+
+        // ================= PASO 6 (LAB 09): RESOLVER COMBATE PVP =================
+        // Con un jugador real: su defensa es PÚBLICA (la escribió él) pero su
+        // inventario es PROTEGIDO (lo escribió el servidor en PublicarInventario).
+        // Lo que dice la defensa no vale de ningún héroe que no esté en el inventario.
+        // (Se conserva tal cual: el combate de la Tarea 8 vive en ResolverCombate.)
+        [CloudCodeFunction("ResolverCombatePvp")]
+        public async Task<ResultadoCombate> ResolverCombatePvp(IExecutionContext context, IGameApiClient api, ResolverCombateRequest req)
+        {
+            var npc = TablaRivales.NpcPorId(req.Rival);
+            if (npc != null)
+            {
+                bool ganoNpc = MiPoder(req.Equipo) >= npc.Vida + npc.Ataque * 2;
+                return new ResultadoCombate
+                {
+                    Gano = ganoNpc,
+                    RivalNombre = npc.Nombre,
+                    Fuente = "npc",
+                    Oro = ganoNpc ? npc.Oro : 0,
+                    Trofeos = ganoNpc ? npc.Trofeos : 0,
+                    Mensaje = ganoNpc ? "Venciste al npc." : "El npc te venció."
+                };
+            }
+
+            if (req.Rival == req.PlayerId)
+                throw new Exception("No puedes pelear contra tu propia defensa.");
+
+            // ---- Defensa pública del rival ----
+            var defResp = await api.CloudSaveData.GetPublicItemsAsync(
+                context, context.ServiceToken, context.ProjectId, req.Rival,
+                new List<string> { Llaves.Defensa }, null);
+            var defensa = LeerDefensa(defResp.Data.Results);
+            if (defensa == null)
+                throw new Exception($"No hay ningún rival <{req.Rival}>.");
+            if (defensa.Equipo.Count == 0) // caso límite (paso 8): RESULTADO, no excepción
+                return new ResultadoCombate
+                {
+                    Gano = false,
+                    RivalNombre = defensa.Nombre,
+                    Fuente = "pvp",
+                    Mensaje = $"<{defensa.Nombre}> tiene una defensa vacía."
+                };
+
+            // ---- Inventario PROTEGIDO del rival (S06/S07) ----
+            var invResp = await api.CloudSaveData.GetProtectedItemsAsync(
+                context, context.ServiceToken, context.ProjectId, req.Rival,
+                new List<string> { Llaves.Inventario }, null);
+            var declarados = defensa.Equipo.Select(h => h.Id).ToList();
+            var inventario = LeerInventario(invResp.Data.Results);
+
+            // HEROES_COLOSO declarado (no está en nadie) → rechaza la batalla
+            if (declarados.Contains(Llaves.HeroeColoso))
+                throw new Exception($"La defensa de {defensa.Nombre} declara {Llaves.HeroeColoso} (coloso): no es peleable.");
+
+            var equipoRival = ArmarEquipo(declarados, inventario, out var ajeno);
+            if (equipoRival == null)
+                throw new Exception($"La defensa de {defensa.Nombre} declara {ajeno}, que no está en su inventario.");
+
+            // ---- Resolver con stats de tabla (en el servidor, no el cliente) ----
+            bool gano = MiPoder(req.Equipo) >= PoderDe(equipoRival);
+            return new ResultadoCombate
+            {
+                Gano = gano,
+                RivalNombre = defensa.Nombre,
+                Fuente = "pvp",
+                Oro = gano ? TablaRivales.OroPvp : 0,
+                Trofeos = gano ? TablaRivales.TrofeosPvp : 0,
+                Mensaje = gano
+                    ? $"Venciste a {defensa.Nombre} (+{TablaRivales.OroPvp} oro, +{TablaRivales.TrofeosPvp} trofeos)."
+                    : $"{defensa.Nombre} te venció."
+            };
+        }
+
+        // ================= LAB 10: COMBATE CON PROGRESION (paso 6) =================
+        // Combate parcial + progresion que vive en el servidor. Toca las 6 llaves
+        // PROTEGIDAS (inventario, operaciones, perfil, progreso, saldos, ultimo_combate)
+        // en UN solo batch para que el cobro y la progresion sean atomicos e idempotentes.
+        [CloudCodeFunction("ResolverCombateProgresion")]
+        public async Task<ResultadoCombate> ResolverCombateProgresion(IExecutionContext context, IGameApiClient api, ResolverCombateRequest req)
+        {
+            req = req ?? new ResolverCombateRequest(); // tolerar un cuerpo vacio sin lanzar 422
+            var cfg = await LeerConfiguracionAsync(context, api);
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+
+            // 2a. idempotencia: si la operacion ya se atendio, mismo resultado sin volver a premiar.
+            if (!string.IsNullOrEmpty(req.IdOperacion) && estado.Operaciones.Ids.Contains(req.IdOperacion))
+                return RespuestaRepetida(estado);
+
+            // Equipos como HeroeEstado (los propios traen nivel/experiencia reales del inventario).
+            var propios = ArmarPropios(estado.Inventario, req.Equipo);
+            var npc = TablaRivales.NpcPorId(req.Rival);
+            List<HeroeEstado> rivales;
+            string rivalNombre;
+            if (npc != null)
+            {
+                rivales = new List<HeroeEstado> { new HeroeEstado { Id = npc.Id, Vida = npc.Vida, Ataque = npc.Ataque } };
+                rivalNombre = npc.Nombre;
+            }
+            else
+            {
+                if (req.Rival == context.PlayerId)
+                    throw new Exception("No puedes pelear contra tu propia defensa.");
+                var defResp = await api.CloudSaveData.GetPublicItemsAsync(
+                    context, context.ServiceToken, context.ProjectId, req.Rival,
+                    new List<string> { Llaves.Defensa }, null, default);
+                var defensa = LeerDefensa(defResp.Data.Results);
+                if (defensa == null) throw new Exception($"No hay ningun rival <{req.Rival}>.");
+                var invResp = await api.CloudSaveData.GetProtectedItemsAsync(
+                    context, context.ServiceToken, context.ProjectId, req.Rival,
+                    new List<string> { Llaves.Inventario }, null, default);
+                rivales = ArmarRivales(defensa.Equipo.Select(h => h.Id).ToList(), LeerInventario(invResp.Data.Results));
+                rivalNombre = defensa.Nombre;
+            }
+
+            int semilla = req.Semilla != 0 ? req.Semilla : System.Environment.TickCount;
+            var sim = Simulador.Simular(propios, rivales, semilla);
+
+            // XP de cuenta y por heroes supervivientes (los caidos no ganan si caidosGanan=false).
+            int xp = ReglasProgresion.ExperienciaDeCombate(cfg.Experiencia, sim.Victoria, sim.TurnosJugados);
+            var subieron = new List<string>();
+            for (int i = 0; i < propios.Count; i++)
+            {
+                if (!cfg.Experiencia.CaidosGanan && i < sim.VidaFinalPropio.Length && sim.VidaFinalPropio[i] <= 0)
+                    continue;
+                var (n, e, s) = ReglasProgresion.AplicarNiveles(cfg.Niveles, propios[i].Nivel, propios[i].Experiencia, xp);
+                if (s > 0) subieron.Add(propios[i].Id);
+                propios[i].Nivel = n; propios[i].Experiencia = e;
+            }
+            var (cn, ce, _) = ReglasProgresion.AplicarNiveles(cfg.Niveles, estado.Perfil.NivelCuenta, estado.Perfil.Experiencia, xp);
+            estado.Perfil.NivelCuenta = cn; estado.Perfil.Experiencia = ce;
+
+            // Botin solo al ganar, con corriente de azar aparte (semilla ^ 0x5EED dentro de TirarBotin).
+            var botin = new List<string>();
+            int monedasBotin = 0;
+            if (sim.Victoria)
+                foreach (var p in ReglasProgresion.TirarBotin(cfg.Botin, semilla))
+                {
+                    botin.Add(p.Id);
+                    if (p.Tipo == "moneda") monedasBotin += p.Cantidad;
+                }
+
+            int oro = 0, trofeos = 0;
+            if (sim.Victoria)
+            {
+                if (npc != null) { oro = npc.Oro; trofeos = npc.Trofeos; }
+                else { oro = TablaRivales.OroPvp; trofeos = TablaRivales.TrofeosPvp; }
+            }
+            estado.Saldos.Monedas += oro + monedasBotin;
+            estado.Progreso.Trofeos += trofeos;
+
+            if (!string.IsNullOrEmpty(req.IdOperacion))
+            {
+                estado.Operaciones.Ids.Add(req.IdOperacion);
+                while (estado.Operaciones.Ids.Count > 20) estado.Operaciones.Ids.RemoveAt(0);
+            }
+
+            estado.UltimoCombate = new UltimoCombateEstado
+            {
+                Semilla = semilla, Victoria = sim.Victoria, Turnos = sim.TurnosJugados,
+                Equipos = req.Equipo ?? new List<string>(), Log = sim.Log, Experiencia = xp,
+                Subieron = subieron, Botin = botin
+            };
+            AplicarInventario(estado.Inventario, propios);
+
+            await EscribirEstadoBatchAsync(context, api, estado);
+
+            return new ResultadoCombate
+            {
+                Gano = sim.Victoria, RivalNombre = rivalNombre, Fuente = npc != null ? "npc" : "pvp",
+                Oro = oro + monedasBotin, Trofeos = trofeos, Xp = xp, Nivel = estado.Perfil.NivelCuenta,
+                Subieron = subieron, Botin = botin, Repetida = false,
+                Mensaje = sim.Victoria
+                    ? $"Venciste a {rivalNombre} (+{xp} xp, +{oro + monedasBotin} oro)."
+                    : $"{rivalNombre} te vencio (+{xp} xp)."
+            };
+        }
+
+        // ================= LAB 10: DESBLOQUEAR NODO (paso 9) =================
+        // Solo viaja el id; requisitos, nivel de cuenta y precio salen de la config y del estado PROTEGIDO.
+        [CloudCodeFunction("DesbloquearNodo")]
+        public async Task<ResultadoNodo> DesbloquearNodo(IExecutionContext context, IGameApiClient api, string idNodo)
+        {
+            var cfg = await LeerConfiguracionAsync(context, api);
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            var nodo = cfg.Nodos.FirstOrDefault(n => n.Id == idNodo);
+
+            var motivo = ReglasProgresion.PorQueNoSePuede(nodo, estado.Progreso.Desbloqueos, estado.Perfil.NivelCuenta, estado.Saldos.Monedas);
+            if (motivo != null)
+                return new ResultadoNodo { Exito = false, Mensaje = motivo, MonedaRestante = estado.Saldos.Monedas, Desbloqueos = estado.Progreso.Desbloqueos };
+
+            estado.Saldos.Monedas -= nodo.CuestaMoneda;
+            estado.Progreso.Desbloqueos.Add(nodo.Id);
+            await EscribirEstadoBatchAsync(context, api, estado);
+
+            return new ResultadoNodo
+            {
+                Exito = true, Mensaje = $"Desbloqueado {nodo.Id} por {nodo.CuestaMoneda} oro.",
+                Oro = nodo.CuestaMoneda, MonedaRestante = estado.Saldos.Monedas, Desbloqueos = estado.Progreso.Desbloqueos
+            };
+        }
+
+        // ================= helpers =================
+        class Candidato { public string Id; public int Nivel; public DefensaPublica Defensa; }
+        class CandidatoCrudo { public JToken id; public List<Par> data; }
+        class Par { public string key; public JToken value; }
+        class HeroeInv { public string id; public int vida; public int ataque; }
+
+        // ---------- LAB 08: helpers del combate verificado ----------
+        // El servidor dice NO y no escribe nada: ni premio, ni saldo, ni battle log.
+        // `saldo` viaja para que el cliente vea que el saldo NO se movió. Si el rechazo
+        // ocurre ANTES de leer Cloud Save (entrada inválida), va -1 y el cliente
+        // imprime «sin cambios»: no se tocó ni para leer.
+        static ResultadoCombate Rechazo(string motivo, int saldo = -1)
+        {
+            return new ResultadoCombate
+            {
+                Gano = false,
+                Rechazado = true,
+                Fuente = "rechazo",
+                Mensaje = motivo,
+                SaldoResultante = saldo,
+                Recompensa = new Recompensa { Moneda = "ORO", Cantidad = 0 }
+            };
+        }
+
+        // Lo que se devuelve al cliente: el battle log tal cual lo jugó el servidor.
+        static ResultadoCombate ResultadoDe(ResultadoBatalla pelea, RivalNpc rival, int saldo, bool repetido)
+        {
+            int premio = !repetido && pelea.Victoria ? rival.Moneda : 0;
+            int trofeos = !repetido && pelea.Victoria ? rival.Trofeos : 0;
+            return new ResultadoCombate
+            {
+                Gano = pelea.Victoria,
+                Rival = rival.Id,
+                RivalNombre = rival.Nombre,
+                Fuente = "npc",
+                TurnosJugados = pelea.TurnosJugados,
+                Semilla = pelea.Semilla,
+                EquipoPropio = pelea.EquipoPropio,
+                EquipoRival = pelea.EquipoRival,
+                BattleLog = pelea.BattleLog,
+                Oro = premio,
+                Trofeos = trofeos,
+                TrofeosCambio = trofeos,
+                Recompensa = new Recompensa { Moneda = "ORO", Cantidad = premio },
+                SaldoResultante = saldo,
+                Repeticion = repetido,
+                Mensaje = repetido
+                    ? $"Repetición del combate: mismo battle log ({pelea.BattleLog.Count} acciones), sin volver a premiar."
+                    : pelea.Victoria
+                        ? $"Venciste a {rival.Nombre} en {pelea.TurnosJugados} turnos (+{premio} oro, +{trofeos} trofeos)."
+                        : $"{rival.Nombre} te venció en {pelea.TurnosJugados} turnos (sin premio)."
+            };
+        }
+
+        // Lee tabla_heroes y rivales_npc en UNA sola petición de Remote Config
+        // (con el token del jugador). Si la RC no está publicada, usa los defaults.
+        static async Task<TablaCombate> LeerTablasAsync(IExecutionContext context, IGameApiClient api)
+        {
+            var tablas = TablaCombate.PorDefecto();
+            try
+            {
+                var peticion = new SettingsDeliveryRequest(
+                    context.ProjectId, context.PlayerId, null, null, null, null,
+                    new List<string> { "tabla_heroes", "rivales_npc" }, null, false, null, null, null);
+                var resp = await api.RemoteConfigSettings.AssignSettingsAsync(
+                    context, context.ServiceToken, peticion, default);
+                var token = JToken.Parse(JsonConvert.SerializeObject(resp.Data?.Configs));
+
+                var heroes = BuscarToken(token, "tabla_heroes");
+                if (heroes != null)
+                {
+                    var leidos = heroes.ToObject<Dictionary<string, HeroeTabla>>();
+                    if (leidos != null && leidos.Count > 0) tablas.Heroes = leidos;
+                }
+
+                var rivales = BuscarToken(token, "rivales_npc");
+                if (rivales != null)
+                {
+                    var leidos = rivales.ToObject<List<RivalNpc>>();
+                    if (leidos != null && leidos.Count > 0) tablas.Rivales = leidos;
+                }
+            }
+            catch { /* RC no disponible: los defaults del código son la misma tabla */ }
+            return tablas;
+        }
+
+        // Busca una llave de Remote Config en cualquier profundidad del documento.
+        static JToken BuscarToken(JToken t, string clave)
+        {
+            if (t is JObject o)
+            {
+                var dir = o[clave];
+                if (dir != null) return dir["value"] ?? dir;
+                foreach (var prop in o.Properties())
+                {
+                    var r = BuscarToken(prop.Value, clave);
+                    if (r != null) return r;
+                }
+            }
+            else if (t is JArray a)
+            {
+                foreach (var it in a)
+                {
+                    var r = BuscarToken(it, clave);
+                    if (r != null) return r;
+                }
+            }
+            return null;
+        }
+
+        // Del id declarado a la unidad que pelea: la tabla dice cuánto vale.
+        static List<UnidadCombate> ArmarUnidades(List<string> ids, TablaCombate tablas, InventarioEstado inventario)
+        {
+            var lista = new List<UnidadCombate>();
+            foreach (var id in ids ?? new List<string>())
+            {
+                HeroeTabla fila = null;
+                if (tablas != null && tablas.Heroes != null) tablas.Heroes.TryGetValue(id, out fila);
+                var delInventario = inventario?.Heroes?.FirstOrDefault(h => h.Id == id);
+                lista.Add(new UnidadCombate
+                {
+                    Id = id,
+                    Vida = fila != null && fila.Vida > 0 ? fila.Vida : (delInventario?.Vida ?? 100),
+                    Ataque = fila != null && fila.Ataque > 0 ? fila.Ataque : (delInventario?.Ataque ?? 20),
+                    Defensa = fila?.Defensa ?? 0,
+                    Velocidad = fila != null && fila.Velocidad > 0 ? fila.Velocidad : 10
+                });
+            }
+            return lista;
+        }
+
+        // Saldo + trofeos + ultimo_combate: UNA sola escritura de llaves protegidas.
+        static async Task EscribirCombateBatchAsync(IExecutionContext context, IGameApiClient api, EstadoJugador estado)
+        {
+            var items = new List<SetItemBody>
+            {
+                new SetItemBody(LlavesProgresion.Saldos, estado.Saldos, null),
+                new SetItemBody(LlavesProgresion.Progreso, estado.Progreso, null),
+                new SetItemBody(LlavesProgresion.UltimoCombate, estado.UltimoCombate, null),
+            };
+            await api.CloudSaveData.SetProtectedItemBatchAsync(
+                context, context.ServiceToken, context.ProjectId, context.PlayerId,
+                new SetItemBatchBody(items), default);
+        }
+
+        static DefensaPublica LeerDefensa(List<Item> items)
+        {
+            if (items == null) return null;
+            foreach (var item in items)
+                if (item.Key == Llaves.Defensa && item.Value != null)
+                    return JsonConvert.DeserializeObject<DefensaPublica>(JsonConvert.SerializeObject(item.Value));
+            return null;
+        }
+
+        static List<HeroeInv> LeerInventario(List<Item> items)
+        {
+            var lista = new List<HeroeInv>();
+            if (items == null) return lista;
+            foreach (var item in items)
+                if (item.Key == Llaves.Inventario && item.Value != null)
+                {
+                    var json = JsonConvert.SerializeObject(item.Value);
+                    var ind = JsonConvert.DeserializeObject<InventarioCrudo>(json);
+                    if (ind != null && ind.heroes != null) lista.AddRange(ind.heroes);
+                }
+            return lista;
+        }
+        class InventarioCrudo { public List<HeroeInv> heroes; }
+
+        static int MiPoder(List<string> equipo)
+        {
+            // Poder del towering equipo atacante: #héroes*100 + ataque promedio*10 (stats de tabla)
+            if (equipo == null || equipo.Count == 0) return 0;
+            int suma = 0;
+            foreach (var id in equipo)
+                suma += TablaRivales.Heroes.TryGetValue(id, out var s) ? s.ataque : 20;
+            int promedio = suma / equipo.Count;
+            return TablaRivales.Poder(equipo.Count, promedio);
+        }
+
+        static int PoderDe(List<(int vida, int ataque)> equipo)
+        {
+            if (equipo == null || equipo.Count == 0) return 0;
+            int prom = (int)equipo.Average(h => h.ataque);
+            return TablaRivales.Poder(equipo.Count, prom);
+        }
+
+        // Solo heroes DECLARADOS y PRESENTES en inventario; stats reales vienen del inventario.
+        static List<(int, int)> ArmarEquipo(List<string> declarados, List<HeroeInv> inventario, out string ajeno)
+        {
+            ajeno = "";
+            var equipo = new List<(int, int)>();
+            if (declarados == null || inventario == null) return null;
+            foreach (string id in declarados)
+            {
+                var inv = inventario.FirstOrDefault(h => h.id == id);
+                if (inv == null) { ajeno = id; return null; }
+                equipo.Add((inv.vida, inv.ataque));
+            }
+            return equipo;
+        }
+
+        // ---------- LAB 10: helpers de integracion ----------
+        static List<HeroeEstado> ArmarPropios(InventarioEstado inv, List<string> equipo)
+        {
+            var lista = new List<HeroeEstado>();
+            foreach (var id in equipo ?? new List<string>())
+            {
+                var h = inv?.Heroes?.FirstOrDefault(x => x.Id == id);
+                if (h != null)
+                    lista.Add(new HeroeEstado { Id = h.Id, Vida = h.Vida, Ataque = h.Ataque, Nivel = h.Nivel, Experiencia = h.Experiencia });
+                else if (TablaRivales.Heroes.TryGetValue(id, out var s))
+                    lista.Add(new HeroeEstado { Id = id, Vida = s.vida, Ataque = s.ataque });
+                else
+                    lista.Add(new HeroeEstado { Id = id });
+            }
+            return lista;
+        }
+
+        static List<HeroeEstado> ArmarRivales(List<string> declarados, List<HeroeInv> inventario)
+        {
+            var lista = new List<HeroeEstado>();
+            foreach (var id in declarados ?? new List<string>())
+            {
+                var inv = inventario?.FirstOrDefault(h => h.id == id);
+                if (inv != null) lista.Add(new HeroeEstado { Id = id, Vida = inv.vida, Ataque = inv.ataque });
+                else if (TablaRivales.Heroes.TryGetValue(id, out var s)) lista.Add(new HeroeEstado { Id = id, Vida = s.vida, Ataque = s.ataque });
+            }
+            return lista;
+        }
+
+        static void AplicarInventario(InventarioEstado inv, List<HeroeEstado> propios)
+        {
+            if (inv == null) return;
+            foreach (var p in propios)
+            {
+                var h = inv.Heroes.FirstOrDefault(x => x.Id == p.Id);
+                if (h != null) { h.Nivel = p.Nivel; h.Experiencia = p.Experiencia; }
+            }
+        }
+
+        static ResultadoCombate RespuestaRepetida(EstadoJugador estado)
+        {
+            var uc = estado.UltimoCombate;
+            return new ResultadoCombate
+            {
+                Gano = uc.Victoria, RivalNombre = "(repetido)", Fuente = "repetido",
+                Oro = 0, Trofeos = 0, Xp = uc.Experiencia, Nivel = estado.Perfil.NivelCuenta,
+                Subieron = uc.Subieron, Botin = uc.Botin, Repetida = true,
+                Mensaje = "Este combate ya se habia resuelto: mismo resultado, sin volver a premiar."
+            };
+        }
+
+        // Lee la llave "progresion" de Remote Config; si no esta o falla, usa los valores por defecto.
+        static async Task<ConfigProgresion> LeerConfiguracionAsync(IExecutionContext context, IGameApiClient api)
+        {
+            try
+            {
+                var req = new SettingsDeliveryRequest(
+                    context.ProjectId, context.PlayerId, null, null, null, null,
+                    new List<string> { "progresion" }, null, false, null, null, null);
+                var resp = await api.RemoteConfigSettings.AssignSettingsAsync(context, context.ServiceToken, req, default);
+                var token = JToken.Parse(JsonConvert.SerializeObject(resp.Data?.Configs));
+                var val = BuscarTokenProgresion(token);
+                if (val != null)
+                {
+                    var cfg = val.ToObject<ConfigProgresion>();
+                    if (cfg != null) return cfg;
+                }
+            }
+            catch { /* Remote Config no disponible o formato inesperado: defaults */ }
+            return new ConfigProgresion();
+        }
+
+        static JToken BuscarTokenProgresion(JToken t)
+        {
+            if (t is JObject o)
+            {
+                var dir = o["progresion"];
+                if (dir != null) return dir["value"] ?? dir;
+                if (o["experiencia"] != null || o["niveles"] != null) return o;
+                foreach (var prop in o.Properties())
+                {
+                    var r = BuscarTokenProgresion(prop.Value);
+                    if (r != null) return r;
+                }
+            }
+            else if (t is JArray a)
+            {
+                foreach (var it in a)
+                {
+                    var r = BuscarTokenProgresion(it);
+                    if (r != null) return r;
+                }
+            }
+            return null;
+        }
+
+        static async Task<EstadoJugador> LeerEstadoAsync(IExecutionContext context, IGameApiClient api, string playerId)
+        {
+            var estado = new EstadoJugador();
+            var keys = new List<string>
+            {
+                Llaves.Inventario, LlavesProgresion.Operaciones, LlavesProgresion.Perfil,
+                LlavesProgresion.Progreso, LlavesProgresion.Saldos, LlavesProgresion.UltimoCombate
+            };
+            var resp = await api.CloudSaveData.GetProtectedItemsAsync(
+                context, context.ServiceToken, context.ProjectId, playerId, keys, null, default);
+            var items = resp.Data?.Results;
+            if (items == null) return estado;
+            foreach (var item in items)
+            {
+                if (item.Value == null) continue;
+                var json = JsonConvert.SerializeObject(item.Value);
+                switch (item.Key)
+                {
+                    case Llaves.Inventario: estado.Inventario = JsonConvert.DeserializeObject<InventarioEstado>(json) ?? estado.Inventario; break;
+                    case LlavesProgresion.Operaciones: estado.Operaciones = JsonConvert.DeserializeObject<OperacionesEstado>(json) ?? estado.Operaciones; break;
+                    case LlavesProgresion.Perfil: estado.Perfil = JsonConvert.DeserializeObject<PerfilEstado>(json) ?? estado.Perfil; break;
+                    case LlavesProgresion.Progreso: estado.Progreso = JsonConvert.DeserializeObject<ProgresoEstado>(json) ?? estado.Progreso; break;
+                    case LlavesProgresion.Saldos: estado.Saldos = JsonConvert.DeserializeObject<SaldosEstado>(json) ?? estado.Saldos; break;
+                    case LlavesProgresion.UltimoCombate: estado.UltimoCombate = JsonConvert.DeserializeObject<UltimoCombateEstado>(json) ?? estado.UltimoCombate; break;
+                }
+            }
+            return estado;
+        }
+
+        // Las 6 llaves protegidas se escriben en UN solo batch (cobro + progresion atomicos).
+        static async Task EscribirEstadoBatchAsync(IExecutionContext context, IGameApiClient api, EstadoJugador estado)
+        {
+            var items = new List<SetItemBody>
+            {
+                new SetItemBody(Llaves.Inventario, estado.Inventario, null),
+                new SetItemBody(LlavesProgresion.Operaciones, estado.Operaciones, null),
+                new SetItemBody(LlavesProgresion.Perfil, estado.Perfil, null),
+                new SetItemBody(LlavesProgresion.Progreso, estado.Progreso, null),
+                new SetItemBody(LlavesProgresion.Saldos, estado.Saldos, null),
+                new SetItemBody(LlavesProgresion.UltimoCombate, estado.UltimoCombate, null),
+            };
+            await api.CloudSaveData.SetProtectedItemBatchAsync(
+                context, context.ServiceToken, context.ProjectId, context.PlayerId,
+                new SetItemBatchBody(items), default);
+        }
+    }
+}

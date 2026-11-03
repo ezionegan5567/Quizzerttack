@@ -188,5 +188,40 @@ namespace Tienda
 
             return null; // procede
         }
+
+        // ---------- LAB 11: trofeos para la tabla de clasificación ----------
+        // PASO 4: al ganar SUMAN los del rival; al perder RESTAN la mitad, pero nunca
+        // más de lo que tienes (suelo en cero). Verificado en la guía:
+        //   5 trofeos y derrota contra la Guardia real (20) -> mitad 10, pero solo hay 5
+        //   -> cambio -5 -> total 0 (NO -5).
+        //   0 trofeos y derrota -> cambio 0. Un total NUNCA baja de cero.
+        public static int CambioDeTrofeos(int trofeosActuales, bool victoria, int trofeosDelRival)
+        {
+            var rival = Math.Max(0, trofeosDelRival);
+            if (victoria) return rival;
+            var mitad = rival / 2;                       // división entera: 5 -> 2
+            return -Math.Min(Math.Max(0, trofeosActuales), mitad);
+        }
+
+        // Tier por PUESTO (tieringConfig Strategy = Rank): Oro 1-2, Plata 3-9, Bronce 10+.
+        public static string TierPorPuesto(int puesto)
+        {
+            if (puesto <= 0) return "";                  // aún sin puntaje
+            if (puesto <= 2) return "Oro";
+            if (puesto <= 9) return "Plata";
+            return "Bronce";
+        }
+
+        // El premio de la temporada sale de Remote Config (llave "temporada").
+        // OJO: el tier lo devuelve el SERVICIO tal como se escribió en el dashboard ("oro")
+        // y en el .rc está como "Oro": se compara sin distinguir mayúsculas.
+        public static PremioTemporada PremioDe(ConfigTemporada cfg, string tier)
+        {
+            if (cfg?.Premios == null || string.IsNullOrEmpty(tier)) return new PremioTemporada();
+            foreach (var par in cfg.Premios)
+                if (string.Equals(par.Key, tier, StringComparison.OrdinalIgnoreCase))
+                    return par.Value;
+            return new PremioTemporada();
+        }
     }
 }

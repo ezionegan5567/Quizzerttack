@@ -1,0 +1,34 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/remote-config.schema.json",
+  "entries": {
+    "progresion": {
+      "experiencia": {
+        "victoria": 50,
+        "derrota": 15,
+        "porTurno": 1,
+        "topeTurnos": 20,
+        "porCaido": 5,
+        "caidosGanan": false
+      },
+      "niveles": {
+        "maximo": 10,
+        "costoBase": 100
+      },
+      "botin": {
+        "tiradas": 1,
+        "premios": [
+          { "id": "espada", "tipo": "objeto", "cantidad": 1, "peso": 40 },
+          { "id": "pocion", "tipo": "objeto", "cantidad": 2, "peso": 40 },
+          { "id": "nada", "tipo": "objeto", "cantidad": 0, "peso": 20 }
+        ]
+      },
+      "nodos": [
+        { "id": "TALENTO_ATAQUE_1", "requiere": [], "nivelCuentaMin": 1, "cuestaMoneda": 100 },
+        { "id": "TALENTO_ATAQUE_2", "requiere": ["TALENTO_ATAQUE_1"], "nivelCuentaMin": 2, "cuestaMoneda": 300 },
+        { "id": "TALENTO_DEFENSA_1", "requiere": [], "nivelCuentaMin": 1, "cuestaMoneda": 150 },
+        { "id": "MAESTRIA", "requiere": ["TALENTO_ATAQUE_2", "TALENTO_DEFENSA_1"], "nivelCuentaMin": 3, "cuestaMoneda": 500 }
+      ]
+    }
+  },
+  "types": {}
+}

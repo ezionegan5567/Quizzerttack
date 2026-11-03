@@ -1,9 +1,27 @@
 # Lab 08 — `ResolverCombate`: el combate lo resuelve el servidor
 
+> Relacionado: [[Avances del juego]] · [[Sistemas]] · [[Lab10-Progresion]] · [[CloudSave-CloudCode]]
+
+**Guía de Laboratorio #8 — resuelta**
+**Tema:** Bucle de Juego Autoritativo en el Servidor (Cloud Game Loop)
+**Alumno:** Alexander Villena · **Fecha:** 2026-11-02 · **Módulo:** Cloud Code `Tienda` (C# / Net6)
+
 Este documento cubre los **10 pasos** de la tarea 8. El módulo `Tienda` ya estaba más
 avanzado (Lab 09 y Lab 10), así que la tarea 8 se integró **sin romper nada**: el combate
 viejo de poder sigue vivo como `ResolverCombatePvp` y el combate nuevo de la tarea 8
 ocupa el nombre `ResolverCombate`.
+
+---
+
+## 0. Las tres capacidades que evalúa la guía
+
+La guía califica tres cosas concretas. Así se cumplen:
+
+| Capacidad pedida | Dónde está | Cómo se demuestra |
+|---|---|---|
+| **Programa el combate por turnos en C# dentro de una función serverless** | `Tienda/Batalla.cs` (`Batalla.Similar`) llamado desde `Tienda/Funciones.cs` → `[CloudCodeFunction("ResolverCombate")]` | El cliente no manda semilla ni daño: la pelea se ejecuta en Cloud Code y el log se devuelve armado. Prueba: `dotnet test` 7/7. |
+| **Simula el enfrentamiento paso a paso y actualiza inventarios y monedas resultantes** | `Batalla.Similar` (bucle `while` por turnos) + `EscribirCombateBatchAsync` (`saldos`, `progreso`, `ultimo_combate` en una sola escritura protegida) | `[Combate] … premio=ORO+150 saldo=550` → el saldo sube solo cuando gana el jugador; un rechazo devuelve `Saldo` intacto. |
+| **Parsea el archivo de batalla JSON en el cliente para reproducirlo visualmente** | `Assets/Scripts/Online/ReproductorCombate.cs` (`PelearAsync`, corrutina `Reproducir`, barras de vida) + DTOs en `Assets/Scripts/Modelos/Estado.cs` | Los `[Lab08][Acción] T1 … -18 (queda 132)` se pintan **uno cada 0,6 s** desde el `BattleLog` recibido, sin recalcular nada. |
 
 ---
 
@@ -159,8 +177,16 @@ Los hace `DemoLab08.IntentosTramposos()`. Respuestas esperadas del servidor:
 | 5 | Rival que no existe | `Rechazado=true` — «No existe el rival <npc_inexistente>.» |
 | 6 (extra) | Un héroe que no está en mi inventario | `Rechazado=true` — «asesino no está en tu inventario.» |
 
-Ninguno de los rechazos escribe `saldos`, `progreso` ni `ultimo_combate`: `SaldoResultante`
-no se mueve entre intentos.
+Ninguno de los rechazos escribe `saldos`, `progreso` ni `ultimo_combate`. El campo
+`Saldo` de la respuesta lo demuestra:
+
+- Intentos **2, 3 y 4** (equipo inválido): el rechazo ocurre **antes** de tocar Cloud Save,
+  así que el servidor responde `Saldo=sin cambios` (`SaldoResultante = -1`): no se hizo ni
+  la lectura.
+- Intentos **5 y 6** (rival que no existe / héroe que no tengo): el rechazo llega después de
+  leer el estado, así que devuelve **el mismo saldo** con el que entró (`Saldo=400`, no se
+  movió ni un oro).
+- Ningún rechazo devuelve `BattleLog`, ni `Semilla`, ni `Recompensa` con cantidad.
 
 ### Paso 10 — el paquete
 
@@ -213,8 +239,8 @@ En la consola verás, en orden:
 [Lab08][Acción] T1 escudero → guerrero_del_hacha -… (queda …)        (una cada 0,6 s)
 [Lab08][Fin] VICTORIA tras … turnos. Saldo resultante: 150
 [Lab08][DETERMINISMO] repetición con semilla …: log idéntico = True (… acciones) — saldo sigue en 150
-[Lab08][INTENTO 1 …] servidor → Rechazado=False …
-[Lab08][INTENTO 2 heroe_coloso] servidor → Rechazado=True | "heroe_coloso no es peleable."
+[Lab08][INTENTO 1 …] servidor → Rechazado=False … Saldo=400 …
+[Lab08][INTENTO 2 heroe_coloso] servidor → Rechazado=True … Saldo=sin cambios | "heroe_coloso no es peleable."
 …
 ```
 
@@ -272,3 +298,74 @@ Scripts_Unity/
    Estado.cs, ReproductorCombate.cs, DemoLab08.cs, ProgresionCliente.cs, UgsDefensa.cs
 Lab08-Combate.md
 ```
+
+---
+
+## 8. Conclusiones
+
+1. **El servidor manda y el cliente solo dibuja.** La semilla (`Random.Shared.Next(1, int.MaxValue)`)
+nace dentro de `ResolverCombate`; el cliente nunca la envía. Cuando el cliente intentó mandar
+`dano=9999`, `victoria=true` y `semilla=123`, la respuesta trajo **otra semilla** (`267978086`)
+y un premio calculado en el servidor: los campos del cliente se ignoraron por completo. Un
+combate resuelto en el cliente es una sugerencia; uno resuelto en Cloud Code es una verdad.
+
+2. **La simulación es puramente determinista.** `Batalla.Similar` no usa `DateTime`, `Random.Shared`
+ni lecturas de red: recibe los dos equipos y una semilla, y devuelve el mismo `BattleLog` siempre.
+La prueba `MismaSemilla_MismoBattleLog` lo demuestra y `RepetirCombate` lo confirma en vivo con
+`log idéntico = True` sobre 28–32 acciones. Gracias a eso el replay es gratis y auditable: basta
+guardar la semilla y los equipos congelados.
+
+3. **Separar QUÉ tengo de CUÁNTO vale es lo que cierra la puerta a la trampa.** El inventario
+(Cloud Save **protegido**, token de servicio) solo dice qué héroes posees; las estadísticas salen
+siempre de Remote Config (`tabla_heroes`), leída con el token del jugador y en **una sola petición**
+junto con `rivales_npc`. Si las stats vinieran del guardado del jugador, comprarlas infinitas
+dependería de su buena voluntad.
+
+4. **Una sola escritura concentra el premio, el progreso y el historial.** `saldos`, `progreso` y
+`ultimo_combate` viajan en el mismo `SetProtectedItemBatchAsync`: o entran los tres o no entra
+ninguno. Evita el estado imposible de “gané oro pero la pelea no quedó registrada”.
+
+5. **Rechazar antes de escribir es una decisión de diseño, no un detalle.** Los rechazos por
+entrada inválida (equipo vacío, héroe repetido, 4 héroes, héroe coloso) responden sin tocar
+Cloud Save —por eso devuelven `Saldo=sin cambios`—, mientras que los que llegan después de leer
+el estado devuelven el saldo real (`Saldo=700`), demostrando que no se movió ni un oro. Rechazar
+sin escribir también protege cuotas: un cliente malicioso no puede convertir sus intentos en
+lecturas y escrituras de Cloud Save.
+
+6. **Instalar algo nuevo sin romper lo anterior es posible.** El módulo ya tenía el combate de
+poder del Lab 09 y la progresión del Lab 10. En lugar de borrar `ResolverCombate`, se renombró a
+`ResolverCombatePvp` y el nombre obligatorio pasó al combate nuevo: los endpoints viejos siguen
+publicados y las pruebas del laboratorio anterior no se tocaron. La verificación en Unity
+(`[UGS] Conectado`, inventario sembrado, pelea, replay y 6 rechazos) cerró el círculo.
+
+---
+
+## 9. Limitaciones y trabajo futuro
+
+**Limitaciones del alcance resuelto**
+
+1. **`S08-rivales-npc.rc` no quedó publicado.** `ugs deploy` responde
+   `Failed to deploy - GetAllConfigsFromEnvironmentAsync failed`: es un problema ambiental de
+   Remote Config en el proyecto (mismo caso que en el Lab 10), no del archivo. Mitigación:
+   `TablaCombate.PorDefecto()` replica exactamente la misma tabla en código y, si la lectura
+   de Remote Config falla, el combate sigue funcionando con esos valores. En cuanto Remote
+   Config esté operativo, basta con desplegar el `.rc`.
+2. **Sin idempotencia en `ResolverCombate`.** Es lo que pide la guía (307: si se pierde la
+   respuesta, el jugador simplemente vuelve a pelear), pero implica que un reintento de red
+   cuenta como una pelea nueva y vuelve a premiar. En un juego real habría que añadir una
+   clave de operación.
+3. **El battle log es la única fuente visual.** No hay animación de sprites ni audio: el
+   cliente pinta texto y barras de vida cada 0,6 s. La pelea “se lee” más de lo que “se ve”.
+4. **Equipos de 1 a 3 héroes y tres rivales de práctica.** Alcanza para validar el bucle
+   autoritativo, no para balancear el juego completo.
+5. **Una sola pasiva por héroe (ninguna).** La tabla del laboratorio solo modela vida, ataque,
+   defensa y velocidad; las habilidades del juego (`DatosFacciones`) no participan en esta
+   simulación.
+
+**Trabajo futuro**
+
+- Publicar Remote Config y hacer que `tabla_heroes` se pueda balancear sin desplegar código.
+- Idempotencia por `idOperacion` y reintento seguro.
+- Emparejar `rivales_npc` con el ranking del Lab 09 para que el rival lo elija el servidor.
+- Reproducción con animaciones de sprite usando el mismo `BattleLog` (el contrato no cambia).
+- Historial de peleas (`ultimos_combates`) usando la misma escritura en lote.

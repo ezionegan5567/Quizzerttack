@@ -156,14 +156,14 @@ namespace Tienda
             var estado = await LeerEstadoAsync(context, api, context.PlayerId);
             foreach (var id in equipo)
                 if (!estado.Inventario.Heroes.Any(h => h.Id == id))
-                    return Rechazo($"{id} no está en tu inventario.");
+                    return Rechazo($"{id} no está en tu inventario.", estado.Saldos.Monedas);
 
             // 3. Remote Config con el token del jugador, las DOS llaves en una petición:
             //    tabla_heroes dice CUÁNTO vale y rivales_npc dice QUIÉN es el rival.
             var tablas = await LeerTablasAsync(context, api);
             var rival = tablas.RivalPorId(idRival);
             if (rival == null || rival.Equipo == null || rival.Equipo.Count == 0)
-                return Rechazo($"No existe el rival <{idRival}>.");
+                return Rechazo($"No existe el rival <{idRival}>.", estado.Saldos.Monedas);
 
             // 4. Los dos equipos, con las stats de la tabla (el cliente no las pone).
             var propios = ArmarUnidades(equipo, tablas, estado.Inventario);
@@ -175,9 +175,12 @@ namespace Tienda
 
             // 6. Recompensa y estado, con la MISMA semilla y los equipos congelados.
             int premio = pelea.Victoria ? rival.Moneda : 0;
-            int trofeos = pelea.Victoria ? rival.Trofeos : 0;
+            // LAB 11 (paso 4): los trofeos SUMAN los del rival al ganar y RESTAN la mitad al
+            // perder, con suelo en cero (ReglasProgresion.CambioDeTrofeos).
+            int trofeosCambio = ReglasProgresion.CambioDeTrofeos(
+                estado.Progreso.Trofeos, pelea.Victoria, rival.Trofeos);
             estado.Saldos.Monedas += premio;
-            estado.Progreso.Trofeos += trofeos;
+            estado.Progreso.Trofeos = Math.Max(0, estado.Progreso.Trofeos + trofeosCambio);
             estado.UltimoCombate = new UltimoCombateEstado
             {
                 Semilla = semilla,
@@ -195,7 +198,15 @@ namespace Tienda
             // 7. Premio + progreso + pelea en UNA sola escritura (o entran los tres o ninguno).
             await EscribirCombateBatchAsync(context, api, estado);
 
-            return ResultadoDe(pelea, rival, estado.Saldos.Monedas, false);
+            // 8. LAB 11 (paso 3): el combate YA está a salvo; ahora se publica el TOTAL en la
+            //    tabla con el token del SERVICIO. Si la tabla falla, el combate no se pierde
+            //    (se manda el total y no la diferencia: el próximo combate la corrige).
+            int puesto = await Ranking.PublicarTrofeosAsync(api, context, context.PlayerId, estado.Progreso.Trofeos);
+
+            var resultado = ResultadoDe(pelea, rival, estado.Saldos.Monedas, false);
+            resultado.TrofeosCambio = trofeosCambio;
+            resultado.PuestoEnRanking = puesto;
+            return resultado;
         }
 
         // ================= LAB 08: REPETIR COMBATE (paso 7) =================
@@ -208,11 +219,40 @@ namespace Tienda
             var uc = estado.UltimoCombate;
             if (uc == null || uc.Semilla == 0 ||
                 uc.UnidadesPropias.Count == 0 || uc.UnidadesRivales.Count == 0)
-                return Rechazo("No hay ningún combate anterior que repetir.");
+                return Rechazo("No hay ningún combate anterior que repetir.", estado.Saldos.Monedas);
 
             var pelea = Batalla.Similar(uc.UnidadesPropias, uc.UnidadesRivales, uc.Semilla);
             var rival = new RivalNpc { Id = uc.Rival, Nombre = uc.RivalNombre };
             return ResultadoDe(pelea, rival, estado.Saldos.Monedas, true);
+        }
+
+        // ================= LAB 11: VISTA DE LA TEMPORADA (paso 9) =================
+        // Cuánto falta para el cierre (reloj del SERVIDOR, no del dispositivo), tu puesto,
+        // tu tier y el premio de la temporada (ese sale de Remote Config).
+        [CloudCodeFunction("VistaTemporada")]
+        public async Task<ResultadoTemporada> VistaTemporada(IExecutionContext context, IGameApiClient api)
+        {
+            var cfg = await Ranking.LeerTemporadaAsync(context, api);
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            var entrada = await Ranking.LeerEntradaAsync(api, context, context.PlayerId);
+            var (cierre, fuente) = await Ranking.LeerCierreAsync(context, cfg);
+
+            int puesto = entrada == null ? 0 : entrada.Rank + 1;   // el servicio cuenta desde 0
+            string tier = !string.IsNullOrEmpty(entrada?.Tier)
+                ? entrada.Tier
+                : ReglasProgresion.TierPorPuesto(puesto);
+
+            return new ResultadoTemporada
+            {
+                Tabla = Ranking.Tabla,
+                Trofeos = estado.Progreso.Trofeos,
+                Puesto = puesto,
+                Tier = tier,
+                CierreUtc = cierre.ToUniversalTime().ToString("o"),
+                SegundosRestantes = Math.Max(0, (long)(cierre - DateTime.UtcNow).TotalSeconds),
+                Premio = ReglasProgresion.PremioDe(cfg, tier),
+                FuenteCierre = fuente
+            };
         }
 
         // ================= PASO 6 (LAB 09): RESOLVER COMBATE PVP =================
@@ -423,7 +463,10 @@ namespace Tienda
 
         // ---------- LAB 08: helpers del combate verificado ----------
         // El servidor dice NO y no escribe nada: ni premio, ni saldo, ni battle log.
-        static ResultadoCombate Rechazo(string motivo)
+        // `saldo` viaja para que el cliente vea que el saldo NO se movió. Si el rechazo
+        // ocurre ANTES de leer Cloud Save (entrada inválida), va -1 y el cliente
+        // imprime «sin cambios»: no se tocó ni para leer.
+        static ResultadoCombate Rechazo(string motivo, int saldo = -1)
         {
             return new ResultadoCombate
             {
@@ -431,6 +474,7 @@ namespace Tienda
                 Rechazado = true,
                 Fuente = "rechazo",
                 Mensaje = motivo,
+                SaldoResultante = saldo,
                 Recompensa = new Recompensa { Moneda = "ORO", Cantidad = 0 }
             };
         }

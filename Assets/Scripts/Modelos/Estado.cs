@@ -100,6 +100,10 @@ namespace Lab09
         public int SaldoResultante { get; set; } = 0;
         public bool Repeticion { get; set; } = false;  // RepetirCombate: mismo log, sin premiar
         public bool Rechazado { get; set; } = false;   // el servidor dijo NO y no escribio nada
+
+        // ---- LAB11: la tabla de trofeos (la escribe el SERVIDOR, aqui solo se pinta) ----
+        public int PuestoEnRanking { get; set; } = 0;  // 1..N; 0 = no se pudo publicar (el combate igual se guardo)
+        public string TablaRanking { get; set; } = ""; // nombre del .lb ("trofeos_dvsc")
     }
 
     // Una línea del battle log tal como la manda el servidor.
@@ -185,5 +189,47 @@ namespace Lab09
     public class RankingResultado
     {
         public List<FilaRanking> Filas { get; set; } = new List<FilaRanking>();
+    }
+
+    // ============ LAB11: tabla de clasificación de TROFEOS (Leaderboards) ============
+    // Una fila de la tabla. `Puesto` ya viene 1..N: el servicio cuenta desde 0 y se le
+    // suma uno SOLO al mostrar (el mismo Rank sirve para pedir vecinos).
+    [Serializable]
+    public class EntradaTablaRanking
+    {
+        public int Puesto { get; set; } = 0;
+        public string PlayerId { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public int Trofeos { get; set; } = 0;
+        public string Tier { get; set; } = "";
+
+        public override string ToString()
+        {
+            return $"{Puesto}° {Nombre} — {Trofeos} trofeos" +
+                   (string.IsNullOrEmpty(Tier) ? "" : $" ({Tier})");
+        }
+    }
+
+    // Premio de la temporada (sale de Remote Config, por tier).
+    [Serializable]
+    public class PremioTemporadaDto
+    {
+        public string Nombre { get; set; } = "";
+        public int Gemas { get; set; } = 0;
+    }
+
+    // Vista de temporada que devuelve el módulo (paso 9): cierre del SERVIDOR, tu puesto,
+    // tu tier y el premio que te tocaría si la temporada cerrara ahora mismo.
+    [Serializable]
+    public class VistaTemporadaDto
+    {
+        public string Tabla { get; set; } = "";
+        public int Trofeos { get; set; } = 0;
+        public int Puesto { get; set; } = 0;
+        public string Tier { get; set; } = "";
+        public string CierreUtc { get; set; } = "";
+        public long SegundosRestantes { get; set; } = 0;
+        public PremioTemporadaDto Premio { get; set; } = new PremioTemporadaDto();
+        public string FuenteCierre { get; set; } = "";
     }
 }

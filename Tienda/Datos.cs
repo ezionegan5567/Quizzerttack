@@ -80,6 +80,12 @@ namespace Tienda
         public int SaldoResultante { get; set; }
         public bool Repeticion { get; set; }   // RepetirCombate: mismo log, sin volver a premiar
         public bool Rechazado { get; set; }    // el servidor dijo NO y no escribio nada
+
+        // ---- LAB 11: lo que la tabla de trofeos devolvio al publicar ----
+        // 1..N = puesto del jugador tras el combate · 0 = no se pudo publicar (el combate
+        // ya esta guardado: se publica el TOTAL, asi que el siguiente combate la corrige).
+        public int PuestoEnRanking { get; set; }
+        public string TablaRanking { get; set; } = Ranking.Tabla;
     }
 
     // Lo que paga el rival de la tabla (moneda y trofeos), tal cual, sin regateo.

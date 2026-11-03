@@ -156,14 +156,14 @@ namespace Tienda
             var estado = await LeerEstadoAsync(context, api, context.PlayerId);
             foreach (var id in equipo)
                 if (!estado.Inventario.Heroes.Any(h => h.Id == id))
-                    return Rechazo($"{id} no está en tu inventario.");
+                    return Rechazo($"{id} no está en tu inventario.", estado.Saldos.Monedas);
 
             // 3. Remote Config con el token del jugador, las DOS llaves en una petición:
             //    tabla_heroes dice CUÁNTO vale y rivales_npc dice QUIÉN es el rival.
             var tablas = await LeerTablasAsync(context, api);
             var rival = tablas.RivalPorId(idRival);
             if (rival == null || rival.Equipo == null || rival.Equipo.Count == 0)
-                return Rechazo($"No existe el rival <{idRival}>.");
+                return Rechazo($"No existe el rival <{idRival}>.", estado.Saldos.Monedas);
 
             // 4. Los dos equipos, con las stats de la tabla (el cliente no las pone).
             var propios = ArmarUnidades(equipo, tablas, estado.Inventario);
@@ -208,7 +208,7 @@ namespace Tienda
             var uc = estado.UltimoCombate;
             if (uc == null || uc.Semilla == 0 ||
                 uc.UnidadesPropias.Count == 0 || uc.UnidadesRivales.Count == 0)
-                return Rechazo("No hay ningún combate anterior que repetir.");
+                return Rechazo("No hay ningún combate anterior que repetir.", estado.Saldos.Monedas);
 
             var pelea = Batalla.Similar(uc.UnidadesPropias, uc.UnidadesRivales, uc.Semilla);
             var rival = new RivalNpc { Id = uc.Rival, Nombre = uc.RivalNombre };
@@ -423,7 +423,10 @@ namespace Tienda
 
         // ---------- LAB 08: helpers del combate verificado ----------
         // El servidor dice NO y no escribe nada: ni premio, ni saldo, ni battle log.
-        static ResultadoCombate Rechazo(string motivo)
+        // `saldo` viaja para que el cliente vea que el saldo NO se movió. Si el rechazo
+        // ocurre ANTES de leer Cloud Save (entrada inválida), va -1 y el cliente
+        // imprime «sin cambios»: no se tocó ni para leer.
+        static ResultadoCombate Rechazo(string motivo, int saldo = -1)
         {
             return new ResultadoCombate
             {
@@ -431,6 +434,7 @@ namespace Tienda
                 Rechazado = true,
                 Fuente = "rechazo",
                 Mensaje = motivo,
+                SaldoResultante = saldo,
                 Recompensa = new Recompensa { Moneda = "ORO", Cantidad = 0 }
             };
         }
