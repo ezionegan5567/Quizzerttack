@@ -133,9 +133,38 @@ Un solo Editor no sirve para esto, porque cada perfil se consulta a mano. Usen *
 | **Esperado** | `plazo` e `inventada`: `Resultado = "invalido"`, `Tipo de jugada no permitido`. Turno viejo: `Resultado = "obsoleto"`. En ningún caso cambia la partida. |
 | **Si falla, reporten** | Qué `Resultado` recibieron. Si `plazo` se aceptó, es un fallo grave (un cliente podría vencerle el turno al rival). |
 
+### 14. Jugar la partida online en la escena real (campo de batalla)
+
+**Esta es la actividad nueva de este PR y nadie la ha probado en Unity.** Hace que la escena de siempre (cartas, casillas, peleadores) se dibuje con lo que dice el servidor. Necesita las actividades 4 y 5 en OK y **dos Editores** (o un Editor y un build Standalone), cada uno con su perfil. Lean antes `Assets/Scripts/Online/Partida/EscenaOnline.cs`: la cabecera explica qué hace y qué no.
+
+| | |
+|---|---|
+| **Pasos** | 1) Editor A: abrir la escena `campo de batalla`, Play, **F7** → *Iniciar sesión* (perfil `principal`) → facción **F1** → *Crear partida* → copiar el código. 2) Editor B: igual con perfil `otro`, facción **F2**, escribir el código → *Unirse*. 3) En **los dos**: botón **Jugar en la escena (campo de batalla)** y **F7** para ocultar el panel. |
+| **Esperado al activar** | La moneda local desaparece. Un jugador ve `Ronda 1 · tu turno: elige UNA carta (o pasa)` y el otro `turno del rival…`. El contador `tiempo: 00:45` baja. Solo las cartas **propias** del jugador en turno están activas. |
+| **Colocar** | El jugador en turno hace clic en una carta de **su** mano (F1 a la izquierda, F2 a la derecha). Esperado: el peleador aparece en una casilla en **las dos pantallas, del mismo lado y en la misma casilla**; la carta se oscurece; el turno pasa y el otro Editor se actualiza en 1 o 2 s. |
+| **Rechazos** | Sin tener el turno, clic en una carta propia: arriba a la derecha `[no_es_tu_turno] No es tu turno.` Clic en una carta del rival: `Esa carta es del rival.` |
+| **Habilidades y quiz** | Con ambos héroes colocados, la fase pasa a habilidades. Pasar el ratón por un peleador **propio** y hacer clic: aparece su panel de habilidades. Elegir una: aparece la ventana `PREGUNTA (N s)` con 4 opciones (**no** el quiz local de siempre). Responder: el peleador queda atenuado (habilidad preparada). |
+| **Pelea** | Cuando los dos terminan (o pasan), el texto `ÚLTIMA PELEA:` muestra las líneas del combate, la vida cambia **igual en las dos pantallas** y los caídos desaparecen. No hay animación (es la Tarea 3). |
+| **Facciones iguales** | Crear con F1 y unirse con F1: el texto de turno dice `Los dos jugadores usan la misma facción...` (la escena solo tiene una mano por facción). |
+| **Hasta el final** | Jugar hasta que termine: `¡GANASTE! (…)` o `Perdiste (…)`. |
+| **Si falla, reporten** | Paso en el que falló, qué esperaban y qué vieron, el texto de arriba a la derecha, y **la consola** (busquen líneas `[EscenaOnline]`: avisan de una carta que no se encontró o de una casilla que no se pudo ocupar). Una captura de las dos pantallas ayuda mucho. Si un peleador sale con la vida llena un instante antes de corregirse, anótenlo (es esperado: `Peleador.Start` reinicia la vida). |
+
+**Límites conocidos (no son fallos):** solo F1 contra F2; sin animaciones; los efectos de estado (buffs, veneno…) no se dibujan; el tiempo mostrado es una cuenta atrás visual (el plazo real lo mide el servidor); para volver al juego local hay que **recargar la escena**.
+
+### 15. El juego local sigue igual (regresión)
+
+Este PR añade unas líneas a `Peleador.cs` y `CartaSeleccion.cs`. Todas empiezan con `if (ModoOnline.Activo)` y no deberían hacer nada si no activan el modo online, pero **hay que comprobarlo**:
+
+| | |
+|---|---|
+| **Pasos** | Abrir la escena `campo de batalla`, Play, **sin** usar F7. Jugar una ronda local completa: moneda, colocar con los dos jugadores, elegir habilidades con el quiz de siempre, pelea automática, nueva ronda. |
+| **Esperado** | Exactamente lo mismo que antes de este PR. |
+| **Si falla, reporten** | Qué cambió respecto a antes, y si recuerdan en qué fase. Esto es **prioritario**: es el único riesgo real del PR para su juego. |
+
 ## Qué esperamos aprender de esto
 
 1. Si el cliente y el módulo se **entienden** en UGS real (actividades 2, 4, 5).
 2. Si el **push** llega y con qué latencia (8 y 9): la única parte que no se pudo comprobar en local.
 3. Si las **reglas** se sienten bien jugando (6 y 7): qué es confuso, qué falta.
 4. Cualquier cosa que el servidor **acepte y no debería** (12 y 13).
+5. Si la **escena real** se deja dibujar con la vista del servidor, y si el juego local sigue intacto (14 y 15).

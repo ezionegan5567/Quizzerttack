@@ -2,7 +2,7 @@
 
 Módulo Cloud Code **`QuizzerMatch`** + cliente Unity para jugar la partida de Quizzerttack (moneda → colocar → habilidades con quiz → pelea → nueva ronda) **online y por turnos**, con el servidor como única autoridad y **push messages** de Cloud Code para avisar al rival.
 
-> **Estado: desarrollado y probado en local, NO desplegado ni probado todavía contra UGS real.** Lo que sí está verificado: el módulo compila contra los paquetes reales de Cloud Code y las 61 pruebas pasan (reglas, replay, servicio, idempotencia, write lock, plazos, información oculta, contrato cliente/servidor y partidas completas simuladas). Lo que falta verificar con Unity y UGS: despliegue, push y panel. Ver *Qué falta*.
+> **Estado: desarrollado y probado en local, NO desplegado ni probado todavía contra UGS real.** Lo que sí está verificado: el módulo compila contra los paquetes reales de Cloud Code y las 72 pruebas pasan (reglas, replay, servicio, idempotencia, write lock, plazos, información oculta, contrato cliente/servidor y partidas completas simuladas). Lo que falta verificar con Unity y UGS: despliegue, push y panel. Ver *Qué falta*.
 >
 > **Sigue el patrón de TTTXO** (arquitectura de referencia del curso): `CreateMatch` / `JoinMatch` / `PlayMove` / `GetMatchState`, estado como lista de jugadas que se reproduce, push `{type, matchId}` con sondeo de respaldo y `GameProtocol.Version`. Una diferencia importante: el Core se comparte entre el módulo y las pruebas, **pero no con el juego de Unity** (ver *Diferencias con TTTXO*).
 
@@ -44,12 +44,15 @@ PartidaOnline/
 │   ├── RepositorioCloudSave.cs   el registro en Cloud Save (custom data privado)
 │   ├── NotificadorPush.cs        push {type, matchId} al rival con IPushClient
 │   └── ModuleSetup.cs
-├── TestProject/                  61 pruebas NUnit (repositorio y push falsos en memoria; compila también el DTO del cliente)
+├── TestProject/                  72 pruebas NUnit (repositorio y push falsos en memoria; compila también el DTO y la lógica de escena del cliente)
 └── Tools/generar_catalogo.py     regenera los archivos *.Generado.cs (en Core/) desde el código de Unity
 Assets/Scripts/Online/Partida/    cliente Unity (todo bajo #if UGS_ON salvo los DTO)
 ├── PartidaDto.cs                 espejo de VistaPartida y de GameProtocol (contrato; lo comprueba ContratoTests)
 ├── PartidaOnlineService.cs       llamadas + custodia del requestId + handshake de versión + suscripción al push
-└── PanelPartidaOnline.cs         panel de prueba (F7), con sondeo de respaldo cada ~10 s
+├── PanelPartidaOnline.cs         panel de prueba (F7), con sondeo de respaldo cada ~10 s
+├── EscenaOnline.cs               modo online en la escena real "campo de batalla": dibuja la vista del servidor (botón del panel F7)
+├── EscenaLogica.cs               qué colocar, actualizar y quitar en la escena (C# puro, con pruebas)
+└── ModoOnline.cs                 ganchos estáticos hacia Peleador y CartaSeleccion (apagados por defecto)
 ```
 
 **Si cambias héroes, habilidades o preguntas en Unity**, ejecuta desde la raíz del repo `python PartidaOnline/Tools/generar_catalogo.py` y vuelve a desplegar. No edites los `*.Generado.cs`.
@@ -137,7 +140,7 @@ Ya sigue el patrón: el cliente envía intenciones, Cloud Code valida con un Cor
 ## Qué falta (honestamente)
 
 1. **Verificar contra UGS real**: despliegue, que `IPushClient` se inyecte como parámetro, que el push llegue, que `GetProtocolVersion` (sin `IExecutionContext`) y los 12 parámetros primitivos de `PlayMove` se despachen bien, el tipo exacto de los eventos `ConnectionStateChanged`/`Error` del SDK (el cliente asume lo de la documentación), que el tamaño del registro de una partida larga quepa en un item de Cloud Save, y que el cliente compile en Unity (aquí sólo se comprobó contra stubs).
-2. **Sustituir el panel IMGUI por la escena real**: hacer que `GestorTurnos`, `CartaSeleccion` y `Peleador` *pinten* la `VistaPartidaDto` en vez de decidir fases y peleas en local. Es el trabajo de integración y conviene que lo hagan ustedes.
+2. **Completar el modo online de la escena real** (`EscenaOnline.cs`): ya coloca héroes, actualiza vidas y muestra el quiz del servidor, pero **no se ha probado en Unity**, solo funciona con F1 contra F2, no anima la pelea y no dibuja los efectos de estado. Ver `docs/TAREAS.md`, Tarea 3, y `docs/PRUEBAS.md`, actividades 14 y 15.
 3. **Implementar los efectos que faltan** (22 habilidades) y decidir los valores de la tabla de arriba.
 4. **Unificar backends**: hoy conviven Firebase, los scripts `T9*`, el módulo `Tienda` y este. Cuando la partida online funcione, el fin de partida puede llamar a la progresión del Lab 10 (con `IdOperacion` = código + jugador) para premiar una sola vez.
 5. **Emparejamiento**: hoy es por código. Se puede reutilizar `BuscarRival` por nivel para invitar.

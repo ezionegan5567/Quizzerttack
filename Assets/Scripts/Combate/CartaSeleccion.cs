@@ -80,6 +80,13 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
     public void OnPointerDown(PointerEventData eventData)
     {
         if (usada) return;
+        // ONLINE: el servidor decide si se puede colocar; aquí sólo se avisa del clic (ver Scripts/Online/Partida/EscenaOnline.cs).
+        if (QuizzerAttack.Partida.ModoOnline.Activo)
+        {
+            if (QuizzerAttack.Partida.ModoOnline.AlClicCarta != null)
+                QuizzerAttack.Partida.ModoOnline.AlClicCarta(jugadorDueno, nombreHeroe);
+            return;
+        }
         if (boton != null && !boton.interactable) return;
         if (gestor != null)
         {
@@ -155,12 +162,23 @@ public class CartaSeleccion : MonoBehaviour, IPointerDownHandler
         return usada;
     }
 
-    bool SpawnsHeroe()
+    // ONLINE: coloca el héroe en la casilla que decidió el servidor (lo llama EscenaOnline). Devuelve false si no se pudo.
+    public bool ColocarDesdeServidor(int casilla)
+    {
+        if (usada) return false;
+        if (!SpawnsHeroe(casilla)) return false;
+        MarcarComoUsada();
+        return true;
+    }
+
+    // casillaForzada >= 0: sólo se usa esa casilla (modo online). -1: la primera libre (juego local, como siempre).
+    bool SpawnsHeroe(int casillaForzada = -1)
     {
         if (prefabHeroe == null || puntosLuchadores == null) return false;
 
         for (int i = 0; i < puntosLuchadores.Length; i++)
         {
+            if (casillaForzada >= 0 && i != casillaForzada) continue;
             Transform punto = puntosLuchadores[i];
             if (punto == null) continue;
             if (PuntoOcupado(punto)) continue;
