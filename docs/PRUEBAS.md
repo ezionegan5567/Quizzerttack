@@ -49,7 +49,7 @@ Abran un *issue* o comenten en el PR con, para cada actividad: **número, qué p
 |---|---|
 | **Pasos** | Seguir *Cómo desplegar* de `PartidaOnline/README.md` (usar la `.sln`, no el `.csproj`; hacer primero `--dry-run`). En el panel de UGS (Cloud Code → Modules) abrir `QuizzerMatch`. |
 | **Esperado** | El módulo aparece con **5 funciones**: `CreateMatch`, `JoinMatch`, `GetMatchState`, `PlayMove`, `GetProtocolVersion`. |
-| **Si falla, reporten** | El mensaje del despliegue completo. Si falta alguna función o aparece con otros parámetros, cuál. Aquí podría descubrirse que `GetProtocolVersion` (sin contexto) o los 12 parámetros de `PlayMove` no se despachan como esperamos. |
+| **Si falla, reporten** | El mensaje del despliegue completo. Si falta alguna función o aparece con otros parámetros, cuál. Aquí podría descubrirse que `GetProtocolVersion` (sin contexto) o los 10 parámetros de `PlayMove` no se despachan como esperamos. |
 
 ### 5. Handshake de versión
 

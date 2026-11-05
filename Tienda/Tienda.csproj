@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <Configurations>Debug;Release</Configurations>
+    <AssemblyName>Tienda</AssemblyName>
+    <RootNamespace>Tienda</RootNamespace>
+    <OutputType>Library</OutputType>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.26" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+  </ItemGroup>
+</Project>

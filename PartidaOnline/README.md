@@ -2,7 +2,7 @@
 
 Módulo Cloud Code **`QuizzerMatch`** + cliente Unity para jugar la partida de Quizzerttack (moneda → colocar → habilidades con quiz → pelea → nueva ronda) **online y por turnos**, con el servidor como única autoridad y **push messages** de Cloud Code para avisar al rival.
 
-> **Estado: desarrollado y probado en local, NO desplegado ni probado todavía contra UGS real.** Lo que sí está verificado: el módulo compila contra los paquetes reales de Cloud Code y las 61 pruebas pasan (reglas, replay, servicio, idempotencia, write lock, plazos, información oculta, contrato cliente/servidor y partidas completas simuladas). Lo que falta verificar con Unity y UGS: despliegue, push y panel. Ver *Qué falta*.
+> **Estado: importado en Unity, compila y desplegado en UGS (2026-11-05). Falta probar el push en dos Editores.** Verificado: el cliente compila en Unity con `UGS_ON` sin errores ni avisos, el módulo se despliega y expone las 5 funciones, y las 61 pruebas pasan. Sigue sin probarse con dos jugadores conectados (actividades 5 a 13 de [`docs/PRUEBAS.md`](../docs/PRUEBAS.md)). Ver *Qué falta*.
 >
 > **Sigue el patrón de TTTXO** (arquitectura de referencia del curso): `CreateMatch` / `JoinMatch` / `PlayMove` / `GetMatchState`, estado como lista de jugadas que se reproduce, push `{type, matchId}` con sondeo de respaldo y `GameProtocol.Version`. Una diferencia importante: el Core se comparte entre el módulo y las pruebas, **pero no con el juego de Unity** (ver *Diferencias con TTTXO*).
 
@@ -105,15 +105,25 @@ dotnet test PartidaOnline/TestProject
 
 Necesita el SDK de .NET (las pruebas corren en net8.0; el módulo compila a net6.0 como `Tienda` y `TurnMatch`). No necesita Unity ni UGS.
 
-## Cómo desplegar (SIN PROBAR)
+## Cómo desplegar (hecho el 2026-11-05)
 
 Mismo procedimiento que `Tienda` (ver `Notas/Lab10-Progresion.md`: usar la **`.sln`** y no el `.csproj`; sin `static` en las funciones):
 
 ```bash
+ugs deploy PartidaOnline/QuizzerMatch.sln --dry-run   # primero: dice "Will create"
 ugs deploy PartidaOnline/QuizzerMatch.sln
 ```
 
-Antes: activar Cloud Code y Cloud Save en el proyecto UGS, y comprobar con `--dry-run`. El paquete `com.unity.services.cloudcode` del cliente debe ser ≥ 2.4.0 (ya tienen 2.10.4). Atención: la documentación de Cloud Code 3.0.0 es inconsistente sobre el runtime de .NET (hasta 9 en una página, 10 en otra); comprueben qué admite su entorno antes de cambiar de net6.0.
+**Hace falta el perfil de publicación** `Project/Properties/PublishProfiles/main.pubxml` (Release, linux-x64, ReadyToRun). Sin él el CLI responde `Failed to retrieve main project - Could not find a Publish Profile` y no despliega nada; ya está en el repo.
+
+Antes: activar Cloud Code y Cloud Save en el proyecto UGS. El paquete `com.unity.services.cloudcode` del cliente debe ser ≥ 2.4.0 (ya tienen 2.10.4). Atención: la documentación de Cloud Code 3.0.0 es inconsistente sobre el runtime de .NET (hasta 9 en una página, 10 en otra); comprueben qué admite su entorno antes de cambiar de net6.0.
+
+Para ver qué quedó desplegado (nombres de función y de parámetro, que es lo que el cliente necesita):
+
+```bash
+ugs cc m get QuizzerMatch        # HasError + Endpoints con sus parámetros
+ugs cc m get-spec QuizzerMatch   # OpenAPI: /CreateMatch, /JoinMatch, /GetMatchState, /PlayMove, /GetProtocolVersion
+```
 
 ## Cómo probarlo en Unity (SIN PROBAR)
 
@@ -136,7 +146,7 @@ Ya sigue el patrón: el cliente envía intenciones, Cloud Code valida con un Cor
 
 ## Qué falta (honestamente)
 
-1. **Verificar contra UGS real**: despliegue, que `IPushClient` se inyecte como parámetro, que el push llegue, que `GetProtocolVersion` (sin `IExecutionContext`) y los 12 parámetros primitivos de `PlayMove` se despachen bien, el tipo exacto de los eventos `ConnectionStateChanged`/`Error` del SDK (el cliente asume lo de la documentación), que el tamaño del registro de una partida larga quepa en un item de Cloud Save, y que el cliente compile en Unity (aquí sólo se comprobó contra stubs).
+1. **Verificar con dos jugadores conectados** (hecho el 2026-11-05: despliegue y compilación del cliente en Unity). Verificado: que el módulo se despliega, que `GetProtocolVersion` (sin `IExecutionContext`) se expone sin parámetros y que los 10 parámetros primitivos de `PlayMove` se despachan con su nombre, que `IPushClient` se inyecta sin error de despliegue y que el cliente compila en Unity. Falta: que el **push llegue de verdad** a otro jugador y con qué latencia (actividad 8 de `docs/PRUEBAS.md`), el tipo exacto de los eventos `ConnectionStateChanged`/`Error` del SDK, que el tamaño del registro de una partida larga quepa en un item de Cloud Save, y las reglas jugando (actividades 5 a 7 y 10 a 13).
 2. **Sustituir el panel IMGUI por la escena real**: hacer que `GestorTurnos`, `CartaSeleccion` y `Peleador` *pinten* la `VistaPartidaDto` en vez de decidir fases y peleas en local. Es el trabajo de integración y conviene que lo hagan ustedes.
 3. **Implementar los efectos que faltan** (22 habilidades) y decidir los valores de la tabla de arriba.
 4. **Unificar backends**: hoy conviven Firebase, los scripts `T9*`, el módulo `Tienda` y este. Cuando la partida online funcione, el fin de partida puede llamar a la progresión del Lab 10 (con `IdOperacion` = código + jugador) para premiar una sola vez.
