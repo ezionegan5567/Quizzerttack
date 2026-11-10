@@ -63,6 +63,42 @@ namespace Tienda
         public List<string> Subieron { get; set; } = new List<string>();
         public List<string> Botin { get; set; } = new List<string>();
         public bool Repetida { get; set; }
+
+        // ---- LAB 08: la pelea verificada contra un rival npc (pasos 5-7) ----
+        // Victoria, TurnosJugados, Semilla, Rival, EquipoPropio, EquipoRival, BattleLog,
+        // Recompensa, TrofeosCambio y SaldoResultante son lo que el cliente necesita
+        // para dibujar la pelea con los datos del servidor, sin recalcular nada.
+        public bool Victoria { get { return Gano; } }
+        public int TurnosJugados { get; set; }
+        public int Semilla { get; set; }
+        public string Rival { get; set; } = "";
+        public List<UnidadCombate> EquipoPropio { get; set; } = new List<UnidadCombate>();
+        public List<UnidadCombate> EquipoRival { get; set; } = new List<UnidadCombate>();
+        public List<EntradaBatallaLog> BattleLog { get; set; } = new List<EntradaBatallaLog>();
+        public Recompensa Recompensa { get; set; } = new Recompensa();
+        public int TrofeosCambio { get; set; }
+        public int SaldoResultante { get; set; }
+        public bool Repeticion { get; set; }   // RepetirCombate: mismo log, sin volver a premiar
+        public bool Rechazado { get; set; }    // el servidor dijo NO y no escribio nada
+
+        // ---- LAB 12: los números que aplicó el evento (para la consola y el informe) ----
+        // FactorDano = 1.0 y EventoActivo = false cuando no hay evento: el combate es el del S10.
+        public bool EventoActivo { get; set; }
+        public string EventoNombre { get; set; } = "";
+        public double FactorDano { get; set; } = 1.0;
+
+        // ---- LAB 11: lo que la tabla de trofeos devolvio al publicar ----
+        // 1..N = puesto del jugador tras el combate · 0 = no se pudo publicar (el combate
+        // ya esta guardado: se publica el TOTAL, asi que el siguiente combate la corrige).
+        public int PuestoEnRanking { get; set; }
+        public string TablaRanking { get; set; } = Ranking.Tabla;
+    }
+
+    // Lo que paga el rival de la tabla (moneda y trofeos), tal cual, sin regateo.
+    public class Recompensa
+    {
+        public string Moneda { get; set; } = "ORO";
+        public int Cantidad { get; set; }
     }
 
     public static class Llaves

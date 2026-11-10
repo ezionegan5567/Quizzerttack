@@ -1,0 +1,51 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/remote-config.schema.json",
+  "entries": {
+    "tabla_heroes": {
+      "bufeador": { "vida": 90, "ataque": 15, "defensa": 5, "velocidad": 8 },
+      "asesino": { "vida": 80, "ataque": 32, "defensa": 3, "velocidad": 14 },
+      "lanza_con_escudo": { "vida": 150, "ataque": 16, "defensa": 12, "velocidad": 5 },
+      "enano": { "vida": 125, "ataque": 24, "defensa": 9, "velocidad": 4 },
+      "vampiro": { "vida": 110, "ataque": 28, "defensa": 6, "velocidad": 12 },
+      "mago": { "vida": 90, "ataque": 20, "defensa": 4, "velocidad": 9 },
+      "cazador": { "vida": 85, "ataque": 30, "defensa": 3, "velocidad": 13 },
+      "guerrero_del_hacha": { "vida": 115, "ataque": 30, "defensa": 7, "velocidad": 8 },
+      "lancero": { "vida": 100, "ataque": 24, "defensa": 6, "velocidad": 9 },
+      "nigromante": { "vida": 90, "ataque": 22, "defensa": 4, "velocidad": 7 },
+      "alquimista": { "vida": 90, "ataque": 18, "defensa": 4, "velocidad": 8 },
+      "pistolero": { "vida": 85, "ataque": 30, "defensa": 3, "velocidad": 13 },
+      "escudero": { "vida": 150, "ataque": 14, "defensa": 11, "velocidad": 5 },
+      "guerrero_dos_hachas": { "vida": 100, "ataque": 28, "defensa": 5, "velocidad": 10 },
+      "hombre_lobo": { "vida": 110, "ataque": 28, "defensa": 5, "velocidad": 13 },
+      "curandero": { "vida": 95, "ataque": 16, "defensa": 5, "velocidad": 7 },
+      "arquero": { "vida": 85, "ataque": 28, "defensa": 3, "velocidad": 12 },
+      "muneco_poseido": { "vida": 100, "ataque": 20, "defensa": 6, "velocidad": 6 },
+      "espadachin": { "vida": 105, "ataque": 26, "defensa": 6, "velocidad": 11 },
+      "draconiano": { "vida": 120, "ataque": 30, "defensa": 9, "velocidad": 7 }
+    },
+    "rivales_npc": [
+      {
+        "id": "npc_practica_1",
+        "nombre": "Rival de practica",
+        "equipo": ["escudero", "arquero", "curandero"],
+        "moneda": 150,
+        "trofeos": 5
+      },
+      {
+        "id": "npc_practica_2",
+        "nombre": "Sombra entrenada",
+        "equipo": ["lancero", "espadachin", "mago"],
+        "moneda": 220,
+        "trofeos": 10
+      },
+      {
+        "id": "npc_jefe_1",
+        "nombre": "Coloso de arena",
+        "equipo": ["draconiano", "guerrero_dos_hachas", "nigromante"],
+        "moneda": 400,
+        "trofeos": 25
+      }
+    ]
+  },
+  "types": {}
+}

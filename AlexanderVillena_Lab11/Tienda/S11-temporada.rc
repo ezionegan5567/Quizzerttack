@@ -1,0 +1,15 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/remote-config.schema.json",
+  "entries": {
+    "temporada": {
+      "tabla": "trofeos_dvsc",
+      "cierre": "2026-12-01T05:00:00Z",
+      "premios": {
+        "Oro": { "nombre": "Corona de oro", "gemas": 20 },
+        "Plata": { "nombre": "Corona de plata", "gemas": 10 },
+        "Bronce": { "nombre": "Corona de bronce", "gemas": 5 }
+      }
+    }
+  },
+  "types": {}
+}

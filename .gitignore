@@ -108,10 +108,23 @@ InitTestScene*.unity*
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
 
-# --- PartidaOnline (modulo Cloud Code QuizzerMatch) ---
-# El .gitignore de Unity excluye *.csproj y *.sln: aqui SI se versionan, o el modulo no se puede reconstruir.
+# --- Modulos Cloud Code y sus pruebas (dotnet build) ---
+# El .gitignore de Unity excluye *.csproj y *.sln en todo el repo. Aqui SI se versionan:
+# sin ellos, quien clone el repo no puede reconstruir ni desplegar los modulos.
 !/PartidaOnline/**/*.csproj
 !/PartidaOnline/*.sln
-# ...pero no los binarios ni la salida de compilacion.
+!/Tienda/**/*.csproj
+!/Tienda/*.sln
+!/Tienda.Pruebas/**/*.csproj
+!/Tienda.sln
+# ...pero no los binarios ni la salida de compilacion: cambian en cada build.
 /PartidaOnline/**/bin/
 /PartidaOnline/**/obj/
+/Tienda/bin/
+/Tienda/obj/
+/Tienda.Pruebas/bin/
+/Tienda.Pruebas/obj/
+/_sonda/bin/
+/_sonda/obj/
+/TestA/bin/
+/TestA/obj/

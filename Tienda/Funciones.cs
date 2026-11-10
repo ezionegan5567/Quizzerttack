@@ -132,12 +132,148 @@ namespace Tienda
             return "inventario listo: " + lista.Count + " héroes";
         }
 
-        // ================= PASO 6: RESOLVER COMBATE =================
+        // ================= LAB 08: RESOLVER COMBATE (pasos 1-7) =================
+        // Combate de 1 a 3 héroes contra un rival de la tabla. El cliente NO manda
+        // semilla, ni daño, ni resultado: aquí nacen la semilla y el battle log, y la
+        // recompensa y el estado se guardan en UNA sola transacción.
+        const int MaxHeroesPorEquipo = 3;
+
+        [CloudCodeFunction("ResolverCombate")]
+        public async Task<ResultadoCombate> ResolverCombate(
+            IExecutionContext context, IGameApiClient api, List<string> equipo, string idRival)
+        {
+            // 1. La entrada (paso 2): 1..3 héroes, sin repetidos, sin el héroe coloso.
+            if (equipo == null || equipo.Count == 0 || equipo.Count > MaxHeroesPorEquipo)
+                return Rechazo($"El equipo lleva entre 1 y {MaxHeroesPorEquipo} héroes.");
+            if (equipo.Distinct().Count() != equipo.Count)
+                return Rechazo("El equipo no puede llevar el mismo héroe dos veces.");
+            if (string.IsNullOrWhiteSpace(idRival))
+                return Rechazo("Falta el rival (idRival).");
+            if (equipo.Contains(Llaves.HeroeColoso))
+                return Rechazo($"{Llaves.HeroeColoso} no es peleable.");
+
+            // 2. Cloud Save PROTEGIDO con el token del servicio (paso 3): dice QUÉ tienes.
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            foreach (var id in equipo)
+                if (!estado.Inventario.Heroes.Any(h => h.Id == id))
+                    return Rechazo($"{id} no está en tu inventario.", estado.Saldos.Monedas);
+
+            // 3. Remote Config con el token del jugador, las DOS llaves en una petición:
+            //    tabla_heroes dice CUÁNTO vale y rivales_npc dice QUIÉN es el rival.
+            var tablas = await LeerTablasAsync(context, api);
+            var rival = tablas.RivalPorId(idRival);
+            if (rival == null || rival.Equipo == null || rival.Equipo.Count == 0)
+                return Rechazo($"No existe el rival <{idRival}>.", estado.Saldos.Monedas);
+
+            // 4. Los dos equipos, con las stats de la tabla (el cliente no las pone).
+            var propios = ArmarUnidades(equipo, tablas, estado.Inventario);
+            var rivales = ArmarUnidades(rival.Equipo, tablas, null);
+
+            // 4b. LAB 12 (paso 2): el evento entra en el combate EN EL SERVIDOR. El daño
+            //     escala el ataque PROPIO antes de simular; el equipo que se congela en
+            //     ultimo_combate ya va escalado, asi RepetirCombate sale identica.
+            var liveOps = await LiveOps.LeerAsync(context, api, ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta));
+            var ahora = DateTime.UtcNow;
+            var eventoActivo = ReglasEvento.Activo(liveOps.Evento, ahora);
+            double factor = ReglasEvento.FactorDano(liveOps.Evento, ahora);
+            foreach (var unidad in propios) unidad.Ataque = ReglasEvento.AtaqueEscalado(unidad.Ataque, factor);
+
+            // 5. La semilla nace AQUÍ: el cliente ni la elige ni la conoce de antemano.
+            int semilla = Random.Shared.Next(1, int.MaxValue);
+            var pelea = Batalla.Similar(propios, rivales, semilla);
+
+            // 6. Recompensa y estado, con la MISMA semilla y los equipos congelados.
+            int premio = pelea.Victoria ? rival.Moneda : 0;
+            // LAB 11 (paso 4): los trofeos SUMAN los del rival al ganar y RESTAN la mitad al
+            // perder, con suelo en cero (ReglasProgresion.CambioDeTrofeos).
+            int trofeosCambio = ReglasProgresion.CambioDeTrofeos(
+                estado.Progreso.Trofeos, pelea.Victoria, rival.Trofeos);
+            estado.Saldos.Monedas += premio;
+            estado.Progreso.Trofeos = Math.Max(0, estado.Progreso.Trofeos + trofeosCambio);
+            estado.UltimoCombate = new UltimoCombateEstado
+            {
+                Semilla = semilla,
+                Victoria = pelea.Victoria,
+                Turnos = pelea.TurnosJugados,
+                Rival = rival.Id,
+                RivalNombre = rival.Nombre,
+                Equipos = new List<string>(equipo),
+                UnidadesPropias = pelea.EquipoPropio,
+                UnidadesRivales = pelea.EquipoRival,
+                BattleLog = pelea.BattleLog,
+                SaldoResultante = estado.Saldos.Monedas
+            };
+
+            // 7. Premio + progreso + pelea en UNA sola escritura (o entran los tres o ninguno).
+            await EscribirCombateBatchAsync(context, api, estado);
+
+            // 8. LAB 11 (paso 3): el combate YA está a salvo; ahora se publica el TOTAL en la
+            //    tabla con el token del SERVICIO. Si la tabla falla, el combate no se pierde
+            //    (se manda el total y no la diferencia: el próximo combate la corrige).
+            int puesto = await Ranking.PublicarTrofeosAsync(api, context, context.PlayerId, estado.Progreso.Trofeos);
+
+            var resultado = ResultadoDe(pelea, rival, estado.Saldos.Monedas, false);
+            resultado.TrofeosCambio = trofeosCambio;
+            resultado.PuestoEnRanking = puesto;
+            resultado.EventoActivo = eventoActivo;
+            resultado.EventoNombre = eventoActivo ? liveOps.Evento.Nombre : "";
+            resultado.FactorDano = factor;
+            return resultado;
+        }
+
+        // ================= LAB 08: REPETIR COMBATE (paso 7) =================
+        // Mismo combate, misma semilla y mismos equipos congelados: mismo battle log.
+        // No escribe NADA (ni premio ni estado): solo demuestra el determinismo.
+        [CloudCodeFunction("RepetirCombate")]
+        public async Task<ResultadoCombate> RepetirCombate(IExecutionContext context, IGameApiClient api)
+        {
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            var uc = estado.UltimoCombate;
+            if (uc == null || uc.Semilla == 0 ||
+                uc.UnidadesPropias.Count == 0 || uc.UnidadesRivales.Count == 0)
+                return Rechazo("No hay ningún combate anterior que repetir.", estado.Saldos.Monedas);
+
+            var pelea = Batalla.Similar(uc.UnidadesPropias, uc.UnidadesRivales, uc.Semilla);
+            var rival = new RivalNpc { Id = uc.Rival, Nombre = uc.RivalNombre };
+            return ResultadoDe(pelea, rival, estado.Saldos.Monedas, true);
+        }
+
+        // ================= LAB 11: VISTA DE LA TEMPORADA (paso 9) =================
+        // Cuánto falta para el cierre (reloj del SERVIDOR, no del dispositivo), tu puesto,
+        // tu tier y el premio de la temporada (ese sale de Remote Config).
+        [CloudCodeFunction("VistaTemporada")]
+        public async Task<ResultadoTemporada> VistaTemporada(IExecutionContext context, IGameApiClient api)
+        {
+            var cfg = await Ranking.LeerTemporadaAsync(context, api);
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            var entrada = await Ranking.LeerEntradaAsync(api, context, context.PlayerId);
+            var (cierre, fuente) = await Ranking.LeerCierreAsync(context, cfg);
+
+            int puesto = entrada == null ? 0 : entrada.Rank + 1;   // el servicio cuenta desde 0
+            string tier = !string.IsNullOrEmpty(entrada?.Tier)
+                ? entrada.Tier
+                : ReglasProgresion.TierPorPuesto(puesto);
+
+            return new ResultadoTemporada
+            {
+                Tabla = Ranking.Tabla,
+                Trofeos = estado.Progreso.Trofeos,
+                Puesto = puesto,
+                Tier = tier,
+                CierreUtc = cierre.ToUniversalTime().ToString("o"),
+                SegundosRestantes = Math.Max(0, (long)(cierre - DateTime.UtcNow).TotalSeconds),
+                Premio = ReglasProgresion.PremioDe(cfg, tier),
+                FuenteCierre = fuente
+            };
+        }
+
+        // ================= PASO 6 (LAB 09): RESOLVER COMBATE PVP =================
         // Con un jugador real: su defensa es PÚBLICA (la escribió él) pero su
         // inventario es PROTEGIDO (lo escribió el servidor en PublicarInventario).
         // Lo que dice la defensa no vale de ningún héroe que no esté en el inventario.
-        [CloudCodeFunction("ResolverCombate")]
-        public async Task<ResultadoCombate> ResolverCombate(IExecutionContext context, IGameApiClient api, ResolverCombateRequest req)
+        // (Se conserva tal cual: el combate de la Tarea 8 vive en ResolverCombate.)
+        [CloudCodeFunction("ResolverCombatePvp")]
+        public async Task<ResultadoCombate> ResolverCombatePvp(IExecutionContext context, IGameApiClient api, ResolverCombateRequest req)
         {
             var npc = TablaRivales.NpcPorId(req.Rival);
             if (npc != null)
@@ -214,6 +350,12 @@ namespace Tienda
             var cfg = await LeerConfiguracionAsync(context, api);
             var estado = await LeerEstadoAsync(context, api, context.PlayerId);
 
+            // LAB 12: el evento tambien entra aqui (dano escalado + botin exclusivo).
+            var liveOps = await LiveOps.LeerAsync(context, api, ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta));
+            var ahora = DateTime.UtcNow;
+            var eventoActivo = ReglasEvento.Activo(liveOps.Evento, ahora);
+            double factor = ReglasEvento.FactorDano(liveOps.Evento, ahora);
+
             // 2a. idempotencia: si la operacion ya se atendio, mismo resultado sin volver a premiar.
             if (!string.IsNullOrEmpty(req.IdOperacion) && estado.Operaciones.Ids.Contains(req.IdOperacion))
                 return RespuestaRepetida(estado);
@@ -245,6 +387,8 @@ namespace Tienda
             }
 
             int semilla = req.Semilla != 0 ? req.Semilla : System.Environment.TickCount;
+            // LAB 12 (paso 2): el ataque del equipo propio ya va escalado por el evento.
+            foreach (var p in propios) p.Ataque = ReglasEvento.AtaqueEscalado(p.Ataque, factor);
             var sim = Simulador.Simular(propios, rivales, semilla);
 
             // XP de cuenta y por heroes supervivientes (los caidos no ganan si caidosGanan=false).
@@ -262,10 +406,13 @@ namespace Tienda
             estado.Perfil.NivelCuenta = cn; estado.Perfil.Experiencia = ce;
 
             // Botin solo al ganar, con corriente de azar aparte (semilla ^ 0x5EED dentro de TirarBotin).
+            // LAB 12 (paso 4): durante el evento la tabla del S10 se SUMA a la exclusiva;
+            // la semilla del combate decide cual cae, igual que siempre.
             var botin = new List<string>();
             int monedasBotin = 0;
             if (sim.Victoria)
-                foreach (var p in ReglasProgresion.TirarBotin(cfg.Botin, semilla))
+                foreach (var p in ReglasProgresion.TirarBotin(
+                             ReglasEvento.BotinConEvento(liveOps.Evento, cfg.Botin, ahora), semilla))
                 {
                     botin.Add(p.Id);
                     if (p.Tipo == "moneda") monedasBotin += p.Cantidad;
@@ -301,6 +448,7 @@ namespace Tienda
                 Gano = sim.Victoria, RivalNombre = rivalNombre, Fuente = npc != null ? "npc" : "pvp",
                 Oro = oro + monedasBotin, Trofeos = trofeos, Xp = xp, Nivel = estado.Perfil.NivelCuenta,
                 Subieron = subieron, Botin = botin, Repetida = false,
+                EventoActivo = eventoActivo, EventoNombre = eventoActivo ? liveOps.Evento.Nombre : "", FactorDano = factor,
                 Mensaje = sim.Victoria
                     ? $"Venciste a {rivalNombre} (+{xp} xp, +{oro + monedasBotin} oro)."
                     : $"{rivalNombre} te vencio (+{xp} xp)."
@@ -331,11 +479,290 @@ namespace Tienda
             };
         }
 
+        // ================= LAB 12: VISTA DEL EVENTO (pasos 6 y 7) =================
+        // El cliente pregunta cada 15 s y pinta: el evento aparece y desaparece solo,
+        // sin reiniciar la aplicacion ni publicar una version nueva. La hora que viaja
+        // es la del SERVIDOR; la consola de Unity mostrara la local.
+        [CloudCodeFunction("VistaEvento")]
+        public async Task<ResultadoVistaEvento> VistaEvento(IExecutionContext context, IGameApiClient api)
+        {
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            bool esNuevo = ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta);
+            var cfg = await LiveOps.LeerAsync(context, api, esNuevo);
+            var ahora = DateTime.UtcNow;
+
+            bool activo = ReglasEvento.Activo(cfg.Evento, ahora);
+            long quedan = ReglasEvento.SegundosRestantes(cfg.Evento, ahora);
+            int bono = ReglasEvento.BonoDeBienvenida(cfg.Bienvenida, esNuevo, estado.Perfil.BonoBienvenida);
+
+            return new ResultadoVistaEvento
+            {
+                Activo = activo,
+                Id = cfg.Evento.Id,
+                Nombre = cfg.Evento.Nombre,
+                InicioUtc = cfg.Evento.InicioUtc,
+                FinUtc = cfg.Evento.FinUtc,
+                AhoraUtc = ahora.ToString("o"),
+                SegundosRestantes = quedan,
+                FactorDano = ReglasEvento.FactorDano(cfg.Evento, ahora),
+                Descuento = activo ? cfg.Evento.DescuentoTienda : 0,
+                HeroesEspeciales = cfg.Evento.HeroesEspeciales ?? new List<string>(),
+                BotinExclusivo = activo
+                    ? (cfg.Evento.BotinExclusivo ?? new List<PremioBotin>())
+                    : new List<PremioBotin>(),
+                EsNuevo = esNuevo,
+                MonedaBono = cfg.Bienvenida.Moneda,
+                BonoBienvenida = bono,
+                BonoReclamado = estado.Perfil.BonoBienvenida,
+                Mensaje = (activo
+                    ? $"{cfg.Evento.Nombre}: dano x{cfg.Evento.MultiplicadorDano:0.##}, tienda -{cfg.Evento.DescuentoTienda * 100:0.#} %, " +
+                      $"quedan {ReglasEvento.CuentaAtras(quedan)} (UTC {cfg.Evento.FinUtc})"
+                    : "No hay evento activo: se juega con los numeros base del S10.")
+                    + (string.IsNullOrEmpty(cfg.Error) ? "" : " | RC ERROR: " + cfg.Error)
+            };
+        }
+
+        // ================= LAB 12: BONUS DE BIENVENIDA (paso 8) =================
+        // Se entrega UNA sola vez. La cantidad la decide el override del segmento «nuevo»
+        // (el cliente no manda nada) y la bandera vive en el perfil PROTEGIDO.
+        [CloudCodeFunction("ReclamarBonusBienvenida")]
+        public async Task<ResultadoBono> ReclamarBonusBienvenida(IExecutionContext context, IGameApiClient api)
+        {
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            bool esNuevo = ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta);
+            var cfg = await LiveOps.LeerAsync(context, api, esNuevo);
+
+            int cantidad = ReglasEvento.BonoDeBienvenida(
+                cfg.Bienvenida, esNuevo, estado.Perfil.BonoBienvenida);
+            if (cantidad <= 0)
+            {
+                string motivo = estado.Perfil.BonoBienvenida
+                    ? "ya se reclamo: el bonus de bienvenida es una sola vez por jugador."
+                    : esNuevo
+                        ? "el bonus de bienvenida esta en 0: el override del segmento no esta activo."
+                        : "el bonus es para jugadores nuevos (nivel de cuenta 1).";
+                return new ResultadoBono
+                {
+                    Exito = false, YaReclamado = estado.Perfil.BonoBienvenida,
+                    Cantidad = 0, Saldo = estado.Saldos.Monedas, Mensaje = motivo
+                };
+            }
+
+            estado.Perfil.BonoBienvenida = true;
+            estado.Saldos.Monedas += cantidad;
+            await EscribirEstadoBatchAsync(context, api, estado);
+
+            return new ResultadoBono
+            {
+                Exito = true, YaReclamado = false,
+                Moneda = cfg.Bienvenida.Moneda, Cantidad = cantidad, Saldo = estado.Saldos.Monedas,
+                Mensaje = $"Bonus de bienvenida: +{cantidad} {cfg.Bienvenida.Moneda} (saldo {estado.Saldos.Monedas})."
+            };
+        }
+
+        // ================= LAB 12: COMPRAR HEROE (paso 3) =================
+        // El precio lo decide el SERVIDOR: el catalogo dice el base y el evento el final.
+        // El cliente solo manda el id; nunca el precio ni el descuento.
+        [CloudCodeFunction("ComprarHeroe")]
+        public async Task<ResultadoCompra> ComprarHeroe(
+            IExecutionContext context, IGameApiClient api, string idHeroe)
+        {
+            var item = Catalogo.Buscar(idHeroe);
+            if (item == null)
+                return new ResultadoCompra { Mensaje = $"<{idHeroe}> no esta en el catalogo de la tienda." };
+
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            if (estado.Inventario.Heroes.Any(h => h.Id == item.Id))
+                return new ResultadoCompra
+                {
+                    Exito = false, Heroe = item.Id, Nombre = item.Nombre,
+                    PrecioBase = item.Precio, Saldo = estado.Saldos.Monedas,
+                    Mensaje = $"Ya tenes a {item.Nombre} en el inventario."
+                };
+
+            bool esNuevo = ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta);
+            var cfg = await LiveOps.LeerAsync(context, api, esNuevo);
+            var ahora = DateTime.UtcNow;
+            bool activo = ReglasEvento.Activo(cfg.Evento, ahora);
+            long precio = ReglasEvento.PrecioConDescuento(cfg.Evento, item.Id, item.Precio, ahora);
+            double descuento = activo ? cfg.Evento.DescuentoTienda : 0;
+            bool aplicado = precio < item.Precio;
+
+            if (estado.Saldos.Monedas < precio)
+                return new ResultadoCompra
+                {
+                    Exito = false, Heroe = item.Id, Nombre = item.Nombre,
+                    PrecioBase = item.Precio, Precio = precio, Descuento = descuento,
+                    DescuentoAplicado = aplicado, Saldo = estado.Saldos.Monedas,
+                    Mensaje = $"Te faltan {precio - estado.Saldos.Monedas} ORO: {item.Nombre} cuesta {precio}."
+                };
+
+            estado.Saldos.Monedas -= (int)precio;
+            TablaRivales.Heroes.TryGetValue(item.Id, out var stats);
+            estado.Inventario.Heroes.Add(new HeroeEstado
+            {
+                Id = item.Id,
+                Vida = stats.vida > 0 ? stats.vida : 100,
+                Ataque = stats.ataque > 0 ? stats.ataque : 20
+            });
+            await EscribirEstadoBatchAsync(context, api, estado);
+
+            return new ResultadoCompra
+            {
+                Exito = true, Heroe = item.Id, Nombre = item.Nombre,
+                PrecioBase = item.Precio, Precio = precio, Descuento = descuento,
+                DescuentoAplicado = aplicado, Saldo = estado.Saldos.Monedas,
+                Mensaje = aplicado
+                    ? $"{item.Nombre} en oferta: {item.Precio} -> {precio} (-{descuento * 100:0.#} %). Saldo {estado.Saldos.Monedas}."
+                    : $"{item.Nombre} comprado por {precio}. Saldo {estado.Saldos.Monedas}."
+            };
+        }
+
         // ================= helpers =================
         class Candidato { public string Id; public int Nivel; public DefensaPublica Defensa; }
         class CandidatoCrudo { public JToken id; public List<Par> data; }
         class Par { public string key; public JToken value; }
         class HeroeInv { public string id; public int vida; public int ataque; }
+
+        // ---------- LAB 08: helpers del combate verificado ----------
+        // El servidor dice NO y no escribe nada: ni premio, ni saldo, ni battle log.
+        // `saldo` viaja para que el cliente vea que el saldo NO se movió. Si el rechazo
+        // ocurre ANTES de leer Cloud Save (entrada inválida), va -1 y el cliente
+        // imprime «sin cambios»: no se tocó ni para leer.
+        static ResultadoCombate Rechazo(string motivo, int saldo = -1)
+        {
+            return new ResultadoCombate
+            {
+                Gano = false,
+                Rechazado = true,
+                Fuente = "rechazo",
+                Mensaje = motivo,
+                SaldoResultante = saldo,
+                Recompensa = new Recompensa { Moneda = "ORO", Cantidad = 0 }
+            };
+        }
+
+        // Lo que se devuelve al cliente: el battle log tal cual lo jugó el servidor.
+        static ResultadoCombate ResultadoDe(ResultadoBatalla pelea, RivalNpc rival, int saldo, bool repetido)
+        {
+            int premio = !repetido && pelea.Victoria ? rival.Moneda : 0;
+            int trofeos = !repetido && pelea.Victoria ? rival.Trofeos : 0;
+            return new ResultadoCombate
+            {
+                Gano = pelea.Victoria,
+                Rival = rival.Id,
+                RivalNombre = rival.Nombre,
+                Fuente = "npc",
+                TurnosJugados = pelea.TurnosJugados,
+                Semilla = pelea.Semilla,
+                EquipoPropio = pelea.EquipoPropio,
+                EquipoRival = pelea.EquipoRival,
+                BattleLog = pelea.BattleLog,
+                Oro = premio,
+                Trofeos = trofeos,
+                TrofeosCambio = trofeos,
+                Recompensa = new Recompensa { Moneda = "ORO", Cantidad = premio },
+                SaldoResultante = saldo,
+                Repeticion = repetido,
+                Mensaje = repetido
+                    ? $"Repetición del combate: mismo battle log ({pelea.BattleLog.Count} acciones), sin volver a premiar."
+                    : pelea.Victoria
+                        ? $"Venciste a {rival.Nombre} en {pelea.TurnosJugados} turnos (+{premio} oro, +{trofeos} trofeos)."
+                        : $"{rival.Nombre} te venció en {pelea.TurnosJugados} turnos (sin premio)."
+            };
+        }
+
+        // Lee tabla_heroes y rivales_npc en UNA sola petición de Remote Config
+        // (con el token del jugador). Si la RC no está publicada, usa los defaults.
+        static async Task<TablaCombate> LeerTablasAsync(IExecutionContext context, IGameApiClient api)
+        {
+            var tablas = TablaCombate.PorDefecto();
+            try
+            {
+                var peticion = new SettingsDeliveryRequest(
+                    context.ProjectId, context.PlayerId, null, null, null, null,
+                    new List<string> { "tabla_heroes", "rivales_npc" }, null, false, null, null, null);
+                var resp = await api.RemoteConfigSettings.AssignSettingsAsync(
+                    context, context.ServiceToken, peticion, default);
+                var token = JToken.Parse(JsonConvert.SerializeObject(resp.Data?.Configs));
+
+                var heroes = BuscarToken(token, "tabla_heroes");
+                if (heroes != null)
+                {
+                    var leidos = heroes.ToObject<Dictionary<string, HeroeTabla>>();
+                    if (leidos != null && leidos.Count > 0) tablas.Heroes = leidos;
+                }
+
+                var rivales = BuscarToken(token, "rivales_npc");
+                if (rivales != null)
+                {
+                    var leidos = rivales.ToObject<List<RivalNpc>>();
+                    if (leidos != null && leidos.Count > 0) tablas.Rivales = leidos;
+                }
+            }
+            catch { /* RC no disponible: los defaults del código son la misma tabla */ }
+            return tablas;
+        }
+
+        // Busca una llave de Remote Config en cualquier profundidad del documento.
+        // LAB 12: la reutiliza LiveOps.LeerAsync (misma tolerancia al formato de la respuesta).
+        internal static JToken BuscarToken(JToken t, string clave)
+        {
+            if (t is JObject o)
+            {
+                var dir = o[clave];
+                if (dir != null) return dir["value"] ?? dir;
+                foreach (var prop in o.Properties())
+                {
+                    var r = BuscarToken(prop.Value, clave);
+                    if (r != null) return r;
+                }
+            }
+            else if (t is JArray a)
+            {
+                foreach (var it in a)
+                {
+                    var r = BuscarToken(it, clave);
+                    if (r != null) return r;
+                }
+            }
+            return null;
+        }
+
+        // Del id declarado a la unidad que pelea: la tabla dice cuánto vale.
+        static List<UnidadCombate> ArmarUnidades(List<string> ids, TablaCombate tablas, InventarioEstado inventario)
+        {
+            var lista = new List<UnidadCombate>();
+            foreach (var id in ids ?? new List<string>())
+            {
+                HeroeTabla fila = null;
+                if (tablas != null && tablas.Heroes != null) tablas.Heroes.TryGetValue(id, out fila);
+                var delInventario = inventario?.Heroes?.FirstOrDefault(h => h.Id == id);
+                lista.Add(new UnidadCombate
+                {
+                    Id = id,
+                    Vida = fila != null && fila.Vida > 0 ? fila.Vida : (delInventario?.Vida ?? 100),
+                    Ataque = fila != null && fila.Ataque > 0 ? fila.Ataque : (delInventario?.Ataque ?? 20),
+                    Defensa = fila?.Defensa ?? 0,
+                    Velocidad = fila != null && fila.Velocidad > 0 ? fila.Velocidad : 10
+                });
+            }
+            return lista;
+        }
+
+        // Saldo + trofeos + ultimo_combate: UNA sola escritura de llaves protegidas.
+        static async Task EscribirCombateBatchAsync(IExecutionContext context, IGameApiClient api, EstadoJugador estado)
+        {
+            var items = new List<SetItemBody>
+            {
+                new SetItemBody(LlavesProgresion.Saldos, estado.Saldos, null),
+                new SetItemBody(LlavesProgresion.Progreso, estado.Progreso, null),
+                new SetItemBody(LlavesProgresion.UltimoCombate, estado.UltimoCombate, null),
+            };
+            await api.CloudSaveData.SetProtectedItemBatchAsync(
+                context, context.ServiceToken, context.ProjectId, context.PlayerId,
+                new SetItemBatchBody(items), default);
+        }
 
         static DefensaPublica LeerDefensa(List<Item> items)
         {

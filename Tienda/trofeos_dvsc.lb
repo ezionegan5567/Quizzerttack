@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/leaderboards.schema.json",
+  "Name": "Trofeos del curso",
+  "SortOrder": "desc",
+  "UpdateType": "keepLatest",
+  "ResetConfig": {
+    "Start": "2026-12-01T05:00:00Z",
+    "Schedule": "0 0 1 * *",
+    "Archive": true
+  },
+  "TieringConfig": {
+    "Strategy": "rank",
+    "Tiers": [
+      { "Id": "Oro", "Cutoff": 2.0 },
+      { "Id": "Plata", "Cutoff": 9.0 },
+      { "Id": "Bronce" }
+    ]
+  }
+}

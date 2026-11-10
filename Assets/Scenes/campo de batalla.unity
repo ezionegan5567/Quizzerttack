@@ -1834,6 +1834,10 @@ GameObject:
   - component: {fileID: 407878718}
   - component: {fileID: 407878721}
   - component: {fileID: 407878722}
+  - component: {fileID: 407878724}
+  - component: {fileID: 407878725}
+  - component: {fileID: 407878790}
+  - component: {fileID: 407878791}
   m_Layer: 0
   m_Name: Registros
   m_TagString: Untagged
@@ -1926,6 +1930,82 @@ MonoBehaviour:
   rivalNpc: npc_practica_1
   semilla: 12345
   nodo: TALENTO_ATAQUE_1
+--- !u!114 &407878724
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f03c21fac3e3a1849b4e19790b7addc4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ReproductorCombate
+  barraVidaPropio: {fileID: 0}
+  barraVidaRival: {fileID: 0}
+--- !u!114 &407878725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b206c07f9ed862843b9f9749a2a4e6e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DemoLab08
+  equipo:
+  - guerrero_del_hacha
+  - vampiro
+  - draconiano
+  rivalNpc: npc_practica_1
+  reproductor: {fileID: 0}
+--- !u!114 &407878790
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2618b697398e5784db60a3cb82ca0010, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DemoLab11
+  perfiles:
+  - bruno
+  - carla
+  - ana
+  - dana
+  equipo:
+  - guerrero_del_hacha
+  - vampiro
+  - draconiano
+  rivalNpc: npc_practica_2
+  perfilPrincipal: principal
+--- !u!114 &407878791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4cd8c8d7d7fac54286e879751f48961, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DemoLab12
+  perfil: 'lab12nuevo2 '
+  equipo:
+  - guerrero_del_hacha
+  - vampiro
+  - draconiano
+  rivalNpc: npc_jefe_1
+  heroeEnOferta: mago
+  precioCatalogo: 1200
+  combates: 6
 --- !u!1 &442118023
 GameObject:
   m_ObjectHideFlags: 0

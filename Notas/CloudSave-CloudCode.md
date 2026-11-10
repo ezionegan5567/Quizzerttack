@@ -29,6 +29,8 @@ Captura validar del F10 (11:55):
 - Decisión: **migrar la lógica completa a 3 scripts JS** — desplegados y funcionando de una.
 - Si el docente requiere módulo C#: probar el botón Deploy del paquete de Editor Cloud Code (pipeline del editor) — pendiente, hoy no se usó.
 
+> **Actualización 2026-11-05 — los módulos C# sí funcionan.** El módulo **`QuizzerMatch`** (partida online por turnos, ver [[PartidaOnline]]) despliega con el CLI y expone sus endpoints: `ugs deploy PartidaOnline/QuizzerMatch.sln` → `ugs cc m get QuizzerMatch` devuelve `HasError: false` y 5 funciones con sus parámetros (y `get-spec` devuelve las 5 rutas, no `paths: {}`). La diferencia con el intento del Lab 09: este módulo **sí** tiene `Project/Properties/PublishProfiles/main.pubxml`; sin perfil el CLI ni siquiera sube (`Failed to retrieve main project - Could not find a Publish Profile`). Conclusión: lo que falló entonces fue el proyecto/perfil de publicación, no el hecho de escribir el módulo en C#.
+
 ## Quirks importantes aprendidos (para el docente)
 1. Scripts JS: el server FILTRA los params no declarados → declarar `module.exports.params` OBLIGATORIO. Autenticación: `CallEndpointAsync` (JS) también acepta `Dictionary`.
 2. Host REST correcto de Cloud Save: **`cloud-save.services.api.unity.com`** (el `-services` no existe: `NameResolutionFailure`); `UnityWebRequest` no resuelve ese dominio aunque la shell sí → usar `HttpClient` de .NET.

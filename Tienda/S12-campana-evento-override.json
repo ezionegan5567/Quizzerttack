@@ -1,0 +1,13 @@
+{
+  "activo": true,
+  "id": "lab12-festival-de-la-nube",
+  "nombre": "Lab12 - Festival de la Nube",
+  "inicioUtc": "",
+  "finUtc": "2026-11-10T23:59:00Z",
+  "multiplicadorDano": 1.25,
+  "descuentoTienda": 0.3,
+  "heroesEspeciales": ["mago"],
+  "botinExclusivo": [
+    { "id": "EMBLEMA_FESTIVAL", "tipo": "objeto", "cantidad": 1, "peso": 25 }
+  ]
+}

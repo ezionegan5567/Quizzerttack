@@ -86,6 +86,63 @@ namespace Lab09
         public List<string> Subieron { get; set; } = new List<string>();
         public List<string> Botin { get; set; } = new List<string>();
         public bool Repetida { get; set; } = false;
+
+        // ---- LAB08: el combate verificado contra un rival npc (pasos 5-7) ----
+        public bool Victoria { get; set; } = false;
+        public int TurnosJugados { get; set; } = 0;
+        public int Semilla { get; set; } = 0;
+        public string Rival { get; set; } = "";
+        public List<UnidadCombate> EquipoPropio { get; set; } = new List<UnidadCombate>();
+        public List<UnidadCombate> EquipoRival { get; set; } = new List<UnidadCombate>();
+        public List<EntradaBatallaLog> BattleLog { get; set; } = new List<EntradaBatallaLog>();
+        public Recompensa Recompensa { get; set; } = new Recompensa();
+        public int TrofeosCambio { get; set; } = 0;
+        public int SaldoResultante { get; set; } = 0;
+        public bool Repeticion { get; set; } = false;  // RepetirCombate: mismo log, sin premiar
+        public bool Rechazado { get; set; } = false;   // el servidor dijo NO y no escribio nada
+
+        // ---- LAB11: la tabla de trofeos (la escribe el SERVIDOR, aqui solo se pinta) ----
+        public int PuestoEnRanking { get; set; } = 0;  // 1..N; 0 = no se pudo publicar (el combate igual se guardo)
+        public string TablaRanking { get; set; } = ""; // nombre del .lb ("trofeos_dvsc")
+
+        // ---- LAB12: los numeros que aplico el evento en el SERVIDOR ----
+        public bool EventoActivo { get; set; } = false;
+        public string EventoNombre { get; set; } = "";
+        public double FactorDano { get; set; } = 1.0;  // 1.0 = sin evento
+    }
+
+    // Una línea del battle log tal como la manda el servidor.
+    [Serializable]
+    public class EntradaBatallaLog
+    {
+        public int Turno { get; set; }
+        public string Atacante { get; set; } = "";
+        public string Objetivo { get; set; } = "";
+        public int Dano { get; set; }
+        public int VidaRestante { get; set; }
+
+        public override string ToString()
+        {
+            return $"T{Turno} {Atacante} → {Objetivo} -{Dano} (queda {VidaRestante})";
+        }
+    }
+
+    // Un combatiente con la vida INICIAL con la que entró a la pelea.
+    [Serializable]
+    public class UnidadCombate
+    {
+        public string Id { get; set; } = "";
+        public int Vida { get; set; } = 0;
+        public int Ataque { get; set; } = 0;
+        public int Defensa { get; set; } = 0;
+        public int Velocidad { get; set; } = 0;
+    }
+
+    [Serializable]
+    public class Recompensa
+    {
+        public string Moneda { get; set; } = "ORO";
+        public int Cantidad { get; set; } = 0;
     }
 
     // LAB10: respuesta de DesbloquearNodo (paso 9).
@@ -137,5 +194,107 @@ namespace Lab09
     public class RankingResultado
     {
         public List<FilaRanking> Filas { get; set; } = new List<FilaRanking>();
+    }
+
+    // ============ LAB11: tabla de clasificación de TROFEOS (Leaderboards) ============
+    // Una fila de la tabla. `Puesto` ya viene 1..N: el servicio cuenta desde 0 y se le
+    // suma uno SOLO al mostrar (el mismo Rank sirve para pedir vecinos).
+    [Serializable]
+    public class EntradaTablaRanking
+    {
+        public int Puesto { get; set; } = 0;
+        public string PlayerId { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public int Trofeos { get; set; } = 0;
+        public string Tier { get; set; } = "";
+
+        public override string ToString()
+        {
+            return $"{Puesto}° {Nombre} — {Trofeos} trofeos" +
+                   (string.IsNullOrEmpty(Tier) ? "" : $" ({Tier})");
+        }
+    }
+
+    // Premio de la temporada (sale de Remote Config, por tier).
+    [Serializable]
+    public class PremioTemporadaDto
+    {
+        public string Nombre { get; set; } = "";
+        public int Gemas { get; set; } = 0;
+    }
+
+    // Vista de temporada que devuelve el módulo (paso 9): cierre del SERVIDOR, tu puesto,
+    // tu tier y el premio que te tocaría si la temporada cerrara ahora mismo.
+    [Serializable]
+    public class VistaTemporadaDto
+    {
+        public string Tabla { get; set; } = "";
+        public int Trofeos { get; set; } = 0;
+        public int Puesto { get; set; } = 0;
+        public string Tier { get; set; } = "";
+        public string CierreUtc { get; set; } = "";
+        public long SegundosRestantes { get; set; } = 0;
+        public PremioTemporadaDto Premio { get; set; } = new PremioTemporadaDto();
+        public string FuenteCierre { get; set; } = "";
+    }
+
+    // ============ LAB12: LIVE OPS (evento programado + bienvenida) ============
+    // Lo que devuelve VistaEvento. Los NUMEROS los aplica el SERVIDOR; aqui solo se pintan.
+    // El contador sale de SegundosRestantes + Time.realtimeSinceStartup: el reloj del
+    // dispositivo no participa (el jugador podria atrasarlo).
+    [Serializable]
+    public class PremioBotinDto
+    {
+        public string Id { get; set; } = "";
+        public string Tipo { get; set; } = "";
+        public int Cantidad { get; set; } = 0;
+        public int Peso { get; set; } = 0;
+    }
+
+    [Serializable]
+    public class VistaEventoDto
+    {
+        public bool Activo { get; set; } = false;
+        public string Id { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public string InicioUtc { get; set; } = "";
+        public string FinUtc { get; set; } = "";
+        public string AhoraUtc { get; set; } = "";
+        public long SegundosRestantes { get; set; } = 0;
+        public double FactorDano { get; set; } = 1.0;
+        public double Descuento { get; set; } = 0.0;
+        public List<string> HeroesEspeciales { get; set; } = new List<string>();
+        public List<PremioBotinDto> BotinExclusivo { get; set; } = new List<PremioBotinDto>();
+        public bool EsNuevo { get; set; } = false;
+        public string MonedaBono { get; set; } = "ORO";
+        public int BonoBienvenida { get; set; } = 0;
+        public bool BonoReclamado { get; set; } = false;
+        public string FuenteReloj { get; set; } = "servidor";
+        public string Mensaje { get; set; } = "";
+    }
+
+    [Serializable]
+    public class ResultadoBonoDto
+    {
+        public bool Exito { get; set; } = false;
+        public bool YaReclamado { get; set; } = false;
+        public string Moneda { get; set; } = "ORO";
+        public int Cantidad { get; set; } = 0;
+        public int Saldo { get; set; } = 0;
+        public string Mensaje { get; set; } = "";
+    }
+
+    [Serializable]
+    public class ResultadoCompraDto
+    {
+        public bool Exito { get; set; } = false;
+        public string Heroe { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public int PrecioBase { get; set; } = 0;
+        public long Precio { get; set; } = 0;
+        public double Descuento { get; set; } = 0.0;
+        public bool DescuentoAplicado { get; set; } = false;
+        public int Saldo { get; set; } = 0;
+        public string Mensaje { get; set; } = "";
     }
 }

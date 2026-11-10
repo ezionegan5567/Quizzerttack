@@ -42,6 +42,25 @@ public static class UgsDefensa
         }
     }
 
+    // ---- Nombre de perfil válido ----------------
+    // El SDK de Authentication solo acepta [A-Za-z0-9], '-' y '_', máximo 30 caracteres.
+    // Si el campo del inspector trae espacios o acentos, SwitchProfile lanza
+    // "AuthenticationException · Invalid profile name": mejor limpiarlo acá.
+    public static string LimpiarPerfil(string perfil)
+    {
+        if (string.IsNullOrEmpty(perfil)) return "principal";
+        var limpio = new StringBuilder();
+        foreach (char c in perfil)
+        {
+            bool vale = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '-' || c == '_';
+            if (vale) limpio.Append(c);
+        }
+        if (limpio.Length == 0) return "principal";
+        if (limpio.Length > 30) return limpio.ToString(0, 30);
+        return limpio.ToString();
+    }
+
     // ---- Iniciar UGS + sign-in anónimo con perfil ----
     public static async Task IniciarAsync(string perfil = "principal")
     {
@@ -53,6 +72,7 @@ public static class UgsDefensa
             await Task.Delay(50);
 
         // 2) Autenticación anónima con perfil (forzado, demo repetible)
+        perfil = LimpiarPerfil(perfil);
         var auth = AuthenticationService.Instance;
         if (auth.Profile != perfil)
             auth.SwitchProfile(perfil);
@@ -91,6 +111,7 @@ public static class UgsDefensa
     // ---- Paso 2: cambiar de jugador sin segunda computadora ----
     public static async Task CambiarPerfilAsync(string perfil)
     {
+        perfil = LimpiarPerfil(perfil);
         var auth = AuthenticationService.Instance;
         if (auth.IsSignedIn) auth.SignOut(false); // false: conserva credenciales del perfil
         auth.SwitchProfile(perfil);               // SignOut(true) borra el token y crea uno nuevo
