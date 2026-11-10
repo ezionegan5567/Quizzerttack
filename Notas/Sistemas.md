@@ -1,10 +1,11 @@
 # Sistemas del juego
 
-> Actualizado 2026-10-27 — verificado contra `Assets/Scripts/`.
+> Actualizado 2026-11-05 — verificado contra `Assets/Scripts/`.
 
 ## Organización de scripts (carpetas separadas)
 - `Assets/Scripts/Combate/`: los 10 del juego de cartas (Moneda, Gestor, Temporizador, MazoFaccion, DatosFacciones, CartaSeleccion, CartaHover, Peleador, QuizHabilidades, GaleriaArte).
-- `Assets/Scripts/Online/`: capacidades de base de datos compartida (RegistroDefensivo, ClienteNube, SimuladorBatalla, PanelRegistros). Ver sección de abajo.
+- `Assets/Scripts/Online/`: capacidades de base de datos compartida (RegistroDefensivo, ClienteNube, SimuladorBatalla, PanelRegistros) y los clientes de los Labs 08–11 (UgsRival, UgsDefensa, ProgresionCliente, RankingCliente, ReproductorCombate, paneles y demos). Ver sección de abajo.
+- `Assets/Scripts/Online/Partida/`: la **partida online por turnos** (`PartidaDto`, `PartidaOnlineService`, `PanelPartidaOnline`), que habla con el módulo Cloud Code `QuizzerMatch` (`PartidaOnline/`). Detalle en [[PartidaOnline]].
 
 ## Online (Scripts/Online) — base de datos compartida
 - `RegistroDefensivo.cs`: registro de escuadrón defensivo (id, jugador, facción, fecha, 5 peleadores con stats). No es MonoBehaviour. `ToJson` / `ListaDesdeJson` (parsea el mapa `{id:{...}}` de Firebase cortando por balance de llaves) / `DesdeCartas` (lee tus 5 CartaSeleccion) / `Sanear`.
@@ -14,6 +15,15 @@
 - `GestorTurnos.ReiniciarContraRegistro()`: destruye peleadores, resetea cartas, fase 1.
 - `CartaSeleccion.RefrescarSprite()`: re-lee sprite tras cambiar nombre (lo usa Combatir).
 - Nota: probado 2026-10-19 — publicar, listar, simular y combatir funcionando con Firebase (`https://quizzerttack-default-rtdb.firebaseio.com`, us-central1, reglas solo en nodo `registros/*`). Sin URL configurada el panel avisa y no crashea. F9 usa `Keyboard.current.f9Key` si el proyecto está en Input System (legacy `Input.GetKeyDown` solo en modo Both/Old).
+
+## Partida online (Scripts/Online/Partida) — turnos contra Cloud Code
+
+Detalle completo en [[PartidaOnline]]. Todo compila bajo `#if UGS_ON` (Standalone) salvo el DTO.
+
+- `PartidaDto.cs`: **espejo del contrato** con el módulo `QuizzerMatch` (`Core/Vista.cs` y `Core/GameProtocol.cs`). `GameProtocol.Version = 1` (handshake: si el servidor devuelve otra, el panel no pinta nada) y `TipoPush.MatchUpdated = "match_updated"`. Contiene `VistaPartidaDto` y los DTO de la vista; **no** depende de Unity (por eso la compila también `TestProject`).
+- `PartidaOnlineService.cs`: las llamadas (`CreateMatch`, `JoinMatch`, `GetMatchState`, `PlayMove`) con `CloudCodeService.Instance.CallModuleEndpointAsync<T>("QuizzerMatch", ...)`. `Llamar()` inyecta `matchId` y **custodia el `requestId`** de la operación pendiente (reintentar reenvía el mismo, para la idempotencia del servidor); `Mover()` manda **siempre** los 10 parámetros de `PlayMove` porque los que el `tipo` no usa el servidor los ignora. `SuscribirPushAsync()` → `SubscribeToPlayerMessagesAsync` con `MessageReceived` (levanta `HayAvisoPush`), `ConnectionStateChanged`, `Kicked` (`NecesitaResuscribir`) y `Error`. `Reanudar(codigo)` = reconexión: sólo el código.
+- `PanelPartidaOnline.cs`: panel IMGUI de prueba (**F7**), en el GameObject `Registros`. Crear / unirse / consultar / reanudar, cambio de perfil para probar los dos lados en un Editor y **sondeo de respaldo cada ~10 s** (`IntervaloSondeoSeg`) mientras la partida esté activa. No decide reglas: sólo dibuja la vista que llega.
+- El servidor está en `PartidaOnline/` (`Core` compartido + `Project` módulo + `TestProject` 61 pruebas). Se despliega con `ugs deploy PartidaOnline/QuizzerMatch.sln` y necesita su `Project/Properties/PublishProfiles/main.pubxml`.
 
 ## Estructura gameplay (estilo PvZ Heroes)
 - **Moneda inicial** (`MonedaInicial.cs`): fase 0, cartas apagadas y timer pausado. Gira `duracionGiro 2.5s` a `720°/s`, texto quién primero/segundo, espera `pausaResultado 1.5s`, luego oculta texto + moneda y llama `IniciarJuego(primero)`. Auto-crea `TextoMoneda` si falta.
@@ -45,6 +55,8 @@
 - Sorting Canvas: quiz 200 > panel habilidad/carta 100 > barra vida 50.
 
 ## Pendientes
+- [ ] Push de la partida online con **dos Editores** (actividad 8) y actividades 5–13 de `docs/PRUEBAS.md`
+- [ ] Pintar la partida online en la escena real (hoy panel IMGUI F7)
 - [ ] Fase 5 con animación de pelea (ahora instantánea en `IniciarPelea`)
 - [ ] Sonido al seleccionar / quiz correcta
 - [ ] Pantalla fin de juego con botón reinicio (ahora solo `textoTurno/textoResultado`)

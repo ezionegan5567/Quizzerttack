@@ -34,7 +34,14 @@ namespace Tienda
     }
 
     public class InventarioEstado { [JsonProperty("heroes")] public List<HeroeEstado> Heroes { get; set; } = new List<HeroeEstado>(); }
-    public class PerfilEstado { [JsonProperty("nivelCuenta")] public int NivelCuenta { get; set; } = 1; [JsonProperty("experiencia")] public int Experiencia { get; set; } = 0; }
+    public class PerfilEstado
+    {
+        [JsonProperty("nivelCuenta")] public int NivelCuenta { get; set; } = 1;
+        [JsonProperty("experiencia")] public int Experiencia { get; set; } = 0;
+        // LAB 12: bandera del bonus de bienvenida. Vive en el perfil PROTEGIDO (no es una
+        // llave nueva): el cliente no puede marcarla para cobrar dos veces el mismo bonus.
+        [JsonProperty("bonoBienvenida")] public bool BonoBienvenida { get; set; }
+    }
     public class ProgresoEstado { [JsonProperty("trofeos")] public int Trofeos { get; set; } = 0; [JsonProperty("desbloqueos")] public List<string> Desbloqueos { get; set; } = new List<string>(); }
     public class SaldosEstado { [JsonProperty("monedas")] public int Monedas { get; set; } = 0; }
     public class OperacionesEstado { [JsonProperty("Ids")] public List<string> Ids { get; set; } = new List<string>(); }

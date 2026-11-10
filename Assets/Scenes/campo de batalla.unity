@@ -1837,6 +1837,7 @@ GameObject:
   - component: {fileID: 407878724}
   - component: {fileID: 407878725}
   - component: {fileID: 407878790}
+  - component: {fileID: 407878791}
   m_Layer: 0
   m_Name: Registros
   m_TagString: Untagged
@@ -1961,6 +1962,50 @@ MonoBehaviour:
   - draconiano
   rivalNpc: npc_practica_1
   reproductor: {fileID: 0}
+--- !u!114 &407878790
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2618b697398e5784db60a3cb82ca0010, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DemoLab11
+  perfiles:
+  - bruno
+  - carla
+  - ana
+  - dana
+  equipo:
+  - guerrero_del_hacha
+  - vampiro
+  - draconiano
+  rivalNpc: npc_practica_2
+  perfilPrincipal: principal
+--- !u!114 &407878791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407878717}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4cd8c8d7d7fac54286e879751f48961, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DemoLab12
+  perfil: 'lab12nuevo2 '
+  equipo:
+  - guerrero_del_hacha
+  - vampiro
+  - draconiano
+  rivalNpc: npc_jefe_1
+  heroeEnOferta: mago
+  precioCatalogo: 1200
+  combates: 6
 --- !u!1 &442118023
 GameObject:
   m_ObjectHideFlags: 0
@@ -9253,27 +9298,3 @@ SceneRoots:
   - {fileID: 2079522085}
   - {fileID: 546527849}
   - {fileID: 407878720}
---- !u!114 &407878790
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 407878717}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2618b697398e5784db60a3cb82ca0010, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DemoLab11
-  perfiles:
-  - bruno
-  - carla
-  - ana
-  - dana
-  equipo:
-  - guerrero_del_hacha
-  - vampiro
-  - draconiano
-  rivalNpc: npc_practica_2
-  perfilPrincipal: principal
-

@@ -81,6 +81,12 @@ namespace Tienda
         public bool Repeticion { get; set; }   // RepetirCombate: mismo log, sin volver a premiar
         public bool Rechazado { get; set; }    // el servidor dijo NO y no escribio nada
 
+        // ---- LAB 12: los números que aplicó el evento (para la consola y el informe) ----
+        // FactorDano = 1.0 y EventoActivo = false cuando no hay evento: el combate es el del S10.
+        public bool EventoActivo { get; set; }
+        public string EventoNombre { get; set; } = "";
+        public double FactorDano { get; set; } = 1.0;
+
         // ---- LAB 11: lo que la tabla de trofeos devolvio al publicar ----
         // 1..N = puesto del jugador tras el combate · 0 = no se pudo publicar (el combate
         // ya esta guardado: se publica el TOTAL, asi que el siguiente combate la corrige).

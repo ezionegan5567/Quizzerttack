@@ -241,7 +241,7 @@
     },
     "com.unity.services.authentication": {
       "version": "3.7.4",
-      "depth": 1,
+      "depth": 0,
       "source": "registry",
       "dependencies": {
         "com.unity.ugui": "1.0.0",
@@ -276,7 +276,7 @@
     },
     "com.unity.services.core": {
       "version": "1.18.0",
-      "depth": 1,
+      "depth": 0,
       "source": "registry",
       "dependencies": {
         "com.unity.modules.androidjni": "1.0.0",

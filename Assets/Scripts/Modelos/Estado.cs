@@ -104,6 +104,11 @@ namespace Lab09
         // ---- LAB11: la tabla de trofeos (la escribe el SERVIDOR, aqui solo se pinta) ----
         public int PuestoEnRanking { get; set; } = 0;  // 1..N; 0 = no se pudo publicar (el combate igual se guardo)
         public string TablaRanking { get; set; } = ""; // nombre del .lb ("trofeos_dvsc")
+
+        // ---- LAB12: los numeros que aplico el evento en el SERVIDOR ----
+        public bool EventoActivo { get; set; } = false;
+        public string EventoNombre { get; set; } = "";
+        public double FactorDano { get; set; } = 1.0;  // 1.0 = sin evento
     }
 
     // Una línea del battle log tal como la manda el servidor.
@@ -231,5 +236,65 @@ namespace Lab09
         public long SegundosRestantes { get; set; } = 0;
         public PremioTemporadaDto Premio { get; set; } = new PremioTemporadaDto();
         public string FuenteCierre { get; set; } = "";
+    }
+
+    // ============ LAB12: LIVE OPS (evento programado + bienvenida) ============
+    // Lo que devuelve VistaEvento. Los NUMEROS los aplica el SERVIDOR; aqui solo se pintan.
+    // El contador sale de SegundosRestantes + Time.realtimeSinceStartup: el reloj del
+    // dispositivo no participa (el jugador podria atrasarlo).
+    [Serializable]
+    public class PremioBotinDto
+    {
+        public string Id { get; set; } = "";
+        public string Tipo { get; set; } = "";
+        public int Cantidad { get; set; } = 0;
+        public int Peso { get; set; } = 0;
+    }
+
+    [Serializable]
+    public class VistaEventoDto
+    {
+        public bool Activo { get; set; } = false;
+        public string Id { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public string InicioUtc { get; set; } = "";
+        public string FinUtc { get; set; } = "";
+        public string AhoraUtc { get; set; } = "";
+        public long SegundosRestantes { get; set; } = 0;
+        public double FactorDano { get; set; } = 1.0;
+        public double Descuento { get; set; } = 0.0;
+        public List<string> HeroesEspeciales { get; set; } = new List<string>();
+        public List<PremioBotinDto> BotinExclusivo { get; set; } = new List<PremioBotinDto>();
+        public bool EsNuevo { get; set; } = false;
+        public string MonedaBono { get; set; } = "ORO";
+        public int BonoBienvenida { get; set; } = 0;
+        public bool BonoReclamado { get; set; } = false;
+        public string FuenteReloj { get; set; } = "servidor";
+        public string Mensaje { get; set; } = "";
+    }
+
+    [Serializable]
+    public class ResultadoBonoDto
+    {
+        public bool Exito { get; set; } = false;
+        public bool YaReclamado { get; set; } = false;
+        public string Moneda { get; set; } = "ORO";
+        public int Cantidad { get; set; } = 0;
+        public int Saldo { get; set; } = 0;
+        public string Mensaje { get; set; } = "";
+    }
+
+    [Serializable]
+    public class ResultadoCompraDto
+    {
+        public bool Exito { get; set; } = false;
+        public string Heroe { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public int PrecioBase { get; set; } = 0;
+        public long Precio { get; set; } = 0;
+        public double Descuento { get; set; } = 0.0;
+        public bool DescuentoAplicado { get; set; } = false;
+        public int Saldo { get; set; } = 0;
+        public string Mensaje { get; set; } = "";
     }
 }

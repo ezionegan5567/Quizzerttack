@@ -169,6 +169,15 @@ namespace Tienda
             var propios = ArmarUnidades(equipo, tablas, estado.Inventario);
             var rivales = ArmarUnidades(rival.Equipo, tablas, null);
 
+            // 4b. LAB 12 (paso 2): el evento entra en el combate EN EL SERVIDOR. El daño
+            //     escala el ataque PROPIO antes de simular; el equipo que se congela en
+            //     ultimo_combate ya va escalado, asi RepetirCombate sale identica.
+            var liveOps = await LiveOps.LeerAsync(context, api, ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta));
+            var ahora = DateTime.UtcNow;
+            var eventoActivo = ReglasEvento.Activo(liveOps.Evento, ahora);
+            double factor = ReglasEvento.FactorDano(liveOps.Evento, ahora);
+            foreach (var unidad in propios) unidad.Ataque = ReglasEvento.AtaqueEscalado(unidad.Ataque, factor);
+
             // 5. La semilla nace AQUÍ: el cliente ni la elige ni la conoce de antemano.
             int semilla = Random.Shared.Next(1, int.MaxValue);
             var pelea = Batalla.Similar(propios, rivales, semilla);
@@ -206,6 +215,9 @@ namespace Tienda
             var resultado = ResultadoDe(pelea, rival, estado.Saldos.Monedas, false);
             resultado.TrofeosCambio = trofeosCambio;
             resultado.PuestoEnRanking = puesto;
+            resultado.EventoActivo = eventoActivo;
+            resultado.EventoNombre = eventoActivo ? liveOps.Evento.Nombre : "";
+            resultado.FactorDano = factor;
             return resultado;
         }
 
@@ -338,6 +350,12 @@ namespace Tienda
             var cfg = await LeerConfiguracionAsync(context, api);
             var estado = await LeerEstadoAsync(context, api, context.PlayerId);
 
+            // LAB 12: el evento tambien entra aqui (dano escalado + botin exclusivo).
+            var liveOps = await LiveOps.LeerAsync(context, api, ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta));
+            var ahora = DateTime.UtcNow;
+            var eventoActivo = ReglasEvento.Activo(liveOps.Evento, ahora);
+            double factor = ReglasEvento.FactorDano(liveOps.Evento, ahora);
+
             // 2a. idempotencia: si la operacion ya se atendio, mismo resultado sin volver a premiar.
             if (!string.IsNullOrEmpty(req.IdOperacion) && estado.Operaciones.Ids.Contains(req.IdOperacion))
                 return RespuestaRepetida(estado);
@@ -369,6 +387,8 @@ namespace Tienda
             }
 
             int semilla = req.Semilla != 0 ? req.Semilla : System.Environment.TickCount;
+            // LAB 12 (paso 2): el ataque del equipo propio ya va escalado por el evento.
+            foreach (var p in propios) p.Ataque = ReglasEvento.AtaqueEscalado(p.Ataque, factor);
             var sim = Simulador.Simular(propios, rivales, semilla);
 
             // XP de cuenta y por heroes supervivientes (los caidos no ganan si caidosGanan=false).
@@ -386,10 +406,13 @@ namespace Tienda
             estado.Perfil.NivelCuenta = cn; estado.Perfil.Experiencia = ce;
 
             // Botin solo al ganar, con corriente de azar aparte (semilla ^ 0x5EED dentro de TirarBotin).
+            // LAB 12 (paso 4): durante el evento la tabla del S10 se SUMA a la exclusiva;
+            // la semilla del combate decide cual cae, igual que siempre.
             var botin = new List<string>();
             int monedasBotin = 0;
             if (sim.Victoria)
-                foreach (var p in ReglasProgresion.TirarBotin(cfg.Botin, semilla))
+                foreach (var p in ReglasProgresion.TirarBotin(
+                             ReglasEvento.BotinConEvento(liveOps.Evento, cfg.Botin, ahora), semilla))
                 {
                     botin.Add(p.Id);
                     if (p.Tipo == "moneda") monedasBotin += p.Cantidad;
@@ -425,6 +448,7 @@ namespace Tienda
                 Gano = sim.Victoria, RivalNombre = rivalNombre, Fuente = npc != null ? "npc" : "pvp",
                 Oro = oro + monedasBotin, Trofeos = trofeos, Xp = xp, Nivel = estado.Perfil.NivelCuenta,
                 Subieron = subieron, Botin = botin, Repetida = false,
+                EventoActivo = eventoActivo, EventoNombre = eventoActivo ? liveOps.Evento.Nombre : "", FactorDano = factor,
                 Mensaje = sim.Victoria
                     ? $"Venciste a {rivalNombre} (+{xp} xp, +{oro + monedasBotin} oro)."
                     : $"{rivalNombre} te vencio (+{xp} xp)."
@@ -452,6 +476,145 @@ namespace Tienda
             {
                 Exito = true, Mensaje = $"Desbloqueado {nodo.Id} por {nodo.CuestaMoneda} oro.",
                 Oro = nodo.CuestaMoneda, MonedaRestante = estado.Saldos.Monedas, Desbloqueos = estado.Progreso.Desbloqueos
+            };
+        }
+
+        // ================= LAB 12: VISTA DEL EVENTO (pasos 6 y 7) =================
+        // El cliente pregunta cada 15 s y pinta: el evento aparece y desaparece solo,
+        // sin reiniciar la aplicacion ni publicar una version nueva. La hora que viaja
+        // es la del SERVIDOR; la consola de Unity mostrara la local.
+        [CloudCodeFunction("VistaEvento")]
+        public async Task<ResultadoVistaEvento> VistaEvento(IExecutionContext context, IGameApiClient api)
+        {
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            bool esNuevo = ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta);
+            var cfg = await LiveOps.LeerAsync(context, api, esNuevo);
+            var ahora = DateTime.UtcNow;
+
+            bool activo = ReglasEvento.Activo(cfg.Evento, ahora);
+            long quedan = ReglasEvento.SegundosRestantes(cfg.Evento, ahora);
+            int bono = ReglasEvento.BonoDeBienvenida(cfg.Bienvenida, esNuevo, estado.Perfil.BonoBienvenida);
+
+            return new ResultadoVistaEvento
+            {
+                Activo = activo,
+                Id = cfg.Evento.Id,
+                Nombre = cfg.Evento.Nombre,
+                InicioUtc = cfg.Evento.InicioUtc,
+                FinUtc = cfg.Evento.FinUtc,
+                AhoraUtc = ahora.ToString("o"),
+                SegundosRestantes = quedan,
+                FactorDano = ReglasEvento.FactorDano(cfg.Evento, ahora),
+                Descuento = activo ? cfg.Evento.DescuentoTienda : 0,
+                HeroesEspeciales = cfg.Evento.HeroesEspeciales ?? new List<string>(),
+                BotinExclusivo = activo
+                    ? (cfg.Evento.BotinExclusivo ?? new List<PremioBotin>())
+                    : new List<PremioBotin>(),
+                EsNuevo = esNuevo,
+                MonedaBono = cfg.Bienvenida.Moneda,
+                BonoBienvenida = bono,
+                BonoReclamado = estado.Perfil.BonoBienvenida,
+                Mensaje = (activo
+                    ? $"{cfg.Evento.Nombre}: dano x{cfg.Evento.MultiplicadorDano:0.##}, tienda -{cfg.Evento.DescuentoTienda * 100:0.#} %, " +
+                      $"quedan {ReglasEvento.CuentaAtras(quedan)} (UTC {cfg.Evento.FinUtc})"
+                    : "No hay evento activo: se juega con los numeros base del S10.")
+                    + (string.IsNullOrEmpty(cfg.Error) ? "" : " | RC ERROR: " + cfg.Error)
+            };
+        }
+
+        // ================= LAB 12: BONUS DE BIENVENIDA (paso 8) =================
+        // Se entrega UNA sola vez. La cantidad la decide el override del segmento «nuevo»
+        // (el cliente no manda nada) y la bandera vive en el perfil PROTEGIDO.
+        [CloudCodeFunction("ReclamarBonusBienvenida")]
+        public async Task<ResultadoBono> ReclamarBonusBienvenida(IExecutionContext context, IGameApiClient api)
+        {
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            bool esNuevo = ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta);
+            var cfg = await LiveOps.LeerAsync(context, api, esNuevo);
+
+            int cantidad = ReglasEvento.BonoDeBienvenida(
+                cfg.Bienvenida, esNuevo, estado.Perfil.BonoBienvenida);
+            if (cantidad <= 0)
+            {
+                string motivo = estado.Perfil.BonoBienvenida
+                    ? "ya se reclamo: el bonus de bienvenida es una sola vez por jugador."
+                    : esNuevo
+                        ? "el bonus de bienvenida esta en 0: el override del segmento no esta activo."
+                        : "el bonus es para jugadores nuevos (nivel de cuenta 1).";
+                return new ResultadoBono
+                {
+                    Exito = false, YaReclamado = estado.Perfil.BonoBienvenida,
+                    Cantidad = 0, Saldo = estado.Saldos.Monedas, Mensaje = motivo
+                };
+            }
+
+            estado.Perfil.BonoBienvenida = true;
+            estado.Saldos.Monedas += cantidad;
+            await EscribirEstadoBatchAsync(context, api, estado);
+
+            return new ResultadoBono
+            {
+                Exito = true, YaReclamado = false,
+                Moneda = cfg.Bienvenida.Moneda, Cantidad = cantidad, Saldo = estado.Saldos.Monedas,
+                Mensaje = $"Bonus de bienvenida: +{cantidad} {cfg.Bienvenida.Moneda} (saldo {estado.Saldos.Monedas})."
+            };
+        }
+
+        // ================= LAB 12: COMPRAR HEROE (paso 3) =================
+        // El precio lo decide el SERVIDOR: el catalogo dice el base y el evento el final.
+        // El cliente solo manda el id; nunca el precio ni el descuento.
+        [CloudCodeFunction("ComprarHeroe")]
+        public async Task<ResultadoCompra> ComprarHeroe(
+            IExecutionContext context, IGameApiClient api, string idHeroe)
+        {
+            var item = Catalogo.Buscar(idHeroe);
+            if (item == null)
+                return new ResultadoCompra { Mensaje = $"<{idHeroe}> no esta en el catalogo de la tienda." };
+
+            var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            if (estado.Inventario.Heroes.Any(h => h.Id == item.Id))
+                return new ResultadoCompra
+                {
+                    Exito = false, Heroe = item.Id, Nombre = item.Nombre,
+                    PrecioBase = item.Precio, Saldo = estado.Saldos.Monedas,
+                    Mensaje = $"Ya tenes a {item.Nombre} en el inventario."
+                };
+
+            bool esNuevo = ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta);
+            var cfg = await LiveOps.LeerAsync(context, api, esNuevo);
+            var ahora = DateTime.UtcNow;
+            bool activo = ReglasEvento.Activo(cfg.Evento, ahora);
+            long precio = ReglasEvento.PrecioConDescuento(cfg.Evento, item.Id, item.Precio, ahora);
+            double descuento = activo ? cfg.Evento.DescuentoTienda : 0;
+            bool aplicado = precio < item.Precio;
+
+            if (estado.Saldos.Monedas < precio)
+                return new ResultadoCompra
+                {
+                    Exito = false, Heroe = item.Id, Nombre = item.Nombre,
+                    PrecioBase = item.Precio, Precio = precio, Descuento = descuento,
+                    DescuentoAplicado = aplicado, Saldo = estado.Saldos.Monedas,
+                    Mensaje = $"Te faltan {precio - estado.Saldos.Monedas} ORO: {item.Nombre} cuesta {precio}."
+                };
+
+            estado.Saldos.Monedas -= (int)precio;
+            TablaRivales.Heroes.TryGetValue(item.Id, out var stats);
+            estado.Inventario.Heroes.Add(new HeroeEstado
+            {
+                Id = item.Id,
+                Vida = stats.vida > 0 ? stats.vida : 100,
+                Ataque = stats.ataque > 0 ? stats.ataque : 20
+            });
+            await EscribirEstadoBatchAsync(context, api, estado);
+
+            return new ResultadoCompra
+            {
+                Exito = true, Heroe = item.Id, Nombre = item.Nombre,
+                PrecioBase = item.Precio, Precio = precio, Descuento = descuento,
+                DescuentoAplicado = aplicado, Saldo = estado.Saldos.Monedas,
+                Mensaje = aplicado
+                    ? $"{item.Nombre} en oferta: {item.Precio} -> {precio} (-{descuento * 100:0.#} %). Saldo {estado.Saldos.Monedas}."
+                    : $"{item.Nombre} comprado por {precio}. Saldo {estado.Saldos.Monedas}."
             };
         }
 
@@ -542,7 +705,8 @@ namespace Tienda
         }
 
         // Busca una llave de Remote Config en cualquier profundidad del documento.
-        static JToken BuscarToken(JToken t, string clave)
+        // LAB 12: la reutiliza LiveOps.LeerAsync (misma tolerancia al formato de la respuesta).
+        internal static JToken BuscarToken(JToken t, string clave)
         {
             if (t is JObject o)
             {
