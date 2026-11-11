@@ -4,37 +4,21 @@ using UnityEngine.InputSystem;
 
 public class CardCarousel : MonoBehaviour
 {
-    [Header("Configuracion de Desplazamiento")]
-    [Tooltip("Distancia en pixeles que se desplaza todo el mazo por cada paso")]
-    public float stepSize = 130f;
+    [Header("Configuración del Carrusel")]
+    [Tooltip("Distancia horizontal en pixeles entre cada carta (ancho de carta + espacio)")]
+    [SerializeField] private float cardSpacing = 220f;
 
-    [Tooltip("Indice inicial (por ejemplo 8 para empezar centrado)")]
-    public int currentIndex = 8;
+    [Tooltip("Velocidad de movimiento suave")]
+    [SerializeField] private float lerpSpeed = 10f;
 
-    [Tooltip("Indice minimo (izquierda maxima)")]
-    public int minIndex = 0;
-
-    [Tooltip("Indice maximo (derecha maxima)")]
-    public int maxIndex = 16;
-
-    [Header("Cartas detectadas automaticamente")]
-    [SerializeField] private List<RectTransform> allCards = new List<RectTransform>();
-
+    private List<RectTransform> allCards = new List<RectTransform>();
     private InputSystem_Actions inputs;
-    private Vector2 initialContainerPosition;
-    private RectTransform containerRect;
 
     private void Awake()
     {
         inputs = new InputSystem_Actions();
 
-        containerRect = GetComponent<RectTransform>();
-        if (containerRect != null)
-        {
-            // Guardamos la posicion base
-            initialContainerPosition = containerRect.anchoredPosition;
-        }
-
+        // Obtener todas las cartas hijas dentro de ContenedorCarrusel
         foreach (Transform child in transform)
         {
             RectTransform rect = child.GetComponent<RectTransform>();
@@ -43,12 +27,6 @@ public class CardCarousel : MonoBehaviour
                 allCards.Add(rect);
             }
         }
-    }
-
-    private void Start()
-    {
-        // Actualizamos la posicion inicial basada en el indice de arranque (ej. 8)
-        UpdateCarouselPosition();
     }
 
     private void OnEnable()
@@ -68,51 +46,64 @@ public class CardCarousel : MonoBehaviour
         }
     }
 
-    private void OnNextCardPerformed(InputAction.CallbackContext context)
+    private void Update()
     {
-        MoveRight(); // D / Flecha Derecha
-    }
+        if (allCards.Count == 0) return;
 
-    private void OnPreviousCardPerformed(InputAction.CallbackContext context)
-    {
-        MoveLeft(); // A / Flecha Izquierda
-    }
+        // Offset para centrar el grupo de cartas respecto al punto origen del contenedor
+        float offset = ((allCards.Count - 1) * cardSpacing) / 2f;
 
-    public void MoveRight()
-    {
-        if (currentIndex < maxIndex)
+        for (int i = 0; i < allCards.Count; i++)
         {
-            currentIndex++;
-            UpdateCarouselPosition();
-            Debug.Log("Mazo movido a la derecha. Indice actual: " + currentIndex);
-        }
-        else
-        {
-            Debug.Log("Llegaste al limite maximo de la derecha (" + maxIndex + ").");
+            if (allCards[i] != null)
+            {
+                // Calcula la posición X objetivo para cada carta
+                float targetX = (i * cardSpacing) - offset;
+                Vector2 currentPos = allCards[i].anchoredPosition;
+
+                // Anima suavemente la posición X
+                float newX = Mathf.Lerp(currentPos.x, targetX, Time.deltaTime * lerpSpeed);
+                allCards[i].anchoredPosition = new Vector2(newX, currentPos.y);
+            }
         }
     }
 
-    public void MoveLeft()
+    private void OnNextCardPerformed(InputAction.CallbackContext context) => NextCard();
+    private void OnPreviousCardPerformed(InputAction.CallbackContext context) => PreviousCard();
+
+    public void NextCard()
     {
-        if (currentIndex > minIndex)
-        {
-            currentIndex--;
-            UpdateCarouselPosition();
-            Debug.Log("Mazo movido a la izquierda. Indice actual: " + currentIndex);
-        }
-        else
-        {
-            Debug.Log("Llegaste al limite minimo de la izquierda (" + minIndex + ").");
-        }
+        if (allCards.Count <= 1) return;
+
+        // Mueve la primera carta al final de la lista
+        RectTransform firstCard = allCards[0];
+        allCards.RemoveAt(0);
+        allCards.Add(firstCard);
+
+        UpdateCardVisuals();
     }
 
-    private void UpdateCarouselPosition()
+    public void PreviousCard()
     {
-        if (containerRect != null)
+        if (allCards.Count <= 1) return;
+
+        // Mueve la última carta al principio de la lista
+        RectTransform lastCard = allCards[allCards.Count - 1];
+        allCards.RemoveAt(allCards.Count - 1);
+        allCards.Insert(0, lastCard);
+
+        UpdateCardVisuals();
+    }
+
+    private void UpdateCardVisuals()
+    {
+        // Actualiza el orden de renderizado en el Canvas para la profundidad
+        for (int i = 0; i < allCards.Count; i++)
         {
-            // Calculamos la posicion restando o sumando segun el desplazamiento respecto al inicio
-            float targetX = initialContainerPosition.x - ((currentIndex - 8) * stepSize);
-            containerRect.anchoredPosition = new Vector2(targetX, initialContainerPosition.y);
+            if (allCards[i] != null)
+            {
+                allCards[i].SetSiblingIndex(i);
+            }
         }
     }
 }

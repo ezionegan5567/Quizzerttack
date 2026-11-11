@@ -204,7 +204,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 2103577581}
         m_TargetAssemblyTypeName: ScenesManager, Assembly-CSharp
-        m_MethodName: SelectorScene
+        m_MethodName: MazoScene
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
