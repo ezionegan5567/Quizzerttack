@@ -3008,31 +3008,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 777427f4bcf39ba4eb143cf9caee6cf3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CardCarousel
-  stepSize: 130
-  currentIndex: 0
-  minIndex: 0
-  maxIndex: 8
-  allCards:
-  - {fileID: 721392311}
-  - {fileID: 360426281}
-  - {fileID: 1232728250}
-  - {fileID: 488532378}
-  - {fileID: 544023523}
-  - {fileID: 2097447138}
-  - {fileID: 1968896332}
-  - {fileID: 911754500}
-  - {fileID: 2020172625}
-  - {fileID: 1722632948}
-  - {fileID: 758555989}
-  - {fileID: 2023746241}
-  - {fileID: 1584525180}
-  - {fileID: 1910938835}
-  - {fileID: 491375291}
-  - {fileID: 1390079571}
-  - {fileID: 324451261}
-  - {fileID: 103846008}
-  - {fileID: 2016034217}
-  - {fileID: 243957285}
+  cardSpacing: 120
+  lerpSpeed: 10
 --- !u!1 &591571242
 GameObject:
   m_ObjectHideFlags: 0
