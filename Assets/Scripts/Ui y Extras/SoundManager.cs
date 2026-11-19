@@ -48,6 +48,8 @@ public class SoundManager : MonoBehaviour
         {
             extrasSlider.onValueChanged.AddListener(SetExtraVolume);
         }
+
+        PlayMusicTrack(0);
     }
 
     public void PlayMusicTrack(int index)
@@ -74,6 +76,16 @@ public class SoundManager : MonoBehaviour
         if (index >= 0 && index < sfxClips.Count && sfxClips[index] != null)
         {
             sfxAudioSource.PlayOneShot(sfxClips[index]);
+        }
+    }
+
+    public void PlayExtra(int index)
+    {
+        if (extrasAudioSource == null) return;
+
+        if (index >= 0 && index < extraClips.Count && extraClips[index] != null)
+        {
+            extrasAudioSource.PlayOneShot(extraClips[index]);
         }
     }
 
