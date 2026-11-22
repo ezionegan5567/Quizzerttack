@@ -21,6 +21,8 @@
     <!-- El contrato del cliente se COMPILA aqui para poder compararlo con el del servidor (ContratoTests).
          Es C# simple, sin UnityEngine, justo para esto. -->
     <Compile Include="..\..\Assets\Scripts\Online\Partida\PartidaDto.cs" Link="Cliente\PartidaDto.cs" />
+    <Compile Include="..\..\Assets\Scripts\Online\Partida\EscenaLogica.cs" Link="Cliente\EscenaLogica.cs" />
+    <Compile Include="..\..\Assets\Scripts\Online\Partida\ModoOnline.cs" Link="Cliente\ModoOnline.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Project\QuizzerMatch.csproj" />

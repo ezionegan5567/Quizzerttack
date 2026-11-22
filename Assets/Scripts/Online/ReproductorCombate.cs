@@ -35,6 +35,9 @@ public class ReproductorCombate : MonoBehaviour
     int _vidaInicialPropio;
     int _vidaInicialRival;
     List<EntradaBatallaLog> _ultimoLog;
+    // LAB13: datos del combate corriente, para el evento ganado/perdido en la corrutina
+    string _heroeLider = "desconocido";
+    int _nivelRival;
 
     // ---- Paso 8: pelear. El equipo y el id del rival son lo ÚNICO que viaja. ----
     public async Task<ResultadoCombate> PelearAsync(List<string> equipo, string idRival)
@@ -45,6 +48,11 @@ public class ReproductorCombate : MonoBehaviour
             { "equipo", equipo },
             { "idRival", idRival }
         };
+
+        // LAB13: combate_iniciado + primer_combate_iniciado (heroe = carta líder, nivel_rival del servidor/npc)
+        _heroeLider = (equipo != null && equipo.Count > 0) ? equipo[0] : "desconocido";
+        _nivelRival = (idRival != null && idRival.StartsWith("npc")) ? 1 : 0;
+        Telemetria.RegistrarCombateIniciado(_heroeLider, _nivelRival);
 
         ResultadoCombate res;
         try
@@ -128,6 +136,8 @@ public class ReproductorCombate : MonoBehaviour
 
         Debug.Log($"[Lab08][Fin] {(res.Victoria ? "VICTORIA" : "DERROTA")} tras {res.TurnosJugados} turnos. " +
                   $"Saldo resultante: {res.SaldoResultante}");
+        // LAB13: combate_ganado / combate_perdido (heroe, nivel_rival, turnos)
+        Telemetria.RegistrarResultadoCombate(_heroeLider, _nivelRival, res.TurnosJugados, res.Victoria);
         CombateTerminado?.Invoke(res);
         tcs.TrySetResult(res);
     }

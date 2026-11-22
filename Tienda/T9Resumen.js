@@ -7,7 +7,7 @@ module.exports = async ({ params, context, logger }) => {
 
   let bolsa = { oro: 0, trofeos: 0 };
   try {
-    const bResp = await cloudSaveApi.getPrivateItems(context.projectId, pid, ["bolsa"]);
+    const bResp = await cloudSaveApi.getProtectedItems(context.projectId, pid, ["bolsa"]);
     const bItem = (bResp.data.results || []).find((i) => i.key === "bolsa");
     if (bItem && bItem.value) bolsa = bItem.value;
   } catch (e) { /* sin bolsa aún */ }

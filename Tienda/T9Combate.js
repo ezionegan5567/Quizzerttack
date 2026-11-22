@@ -80,23 +80,26 @@ module.exports = async ({ params, context, logger }) => {
   const promAtaque = vivos.reduce((s, h) => s + h.ataque, 0) / Math.max(vivos.length, 1);
   const gano = miPoder(equipoAtacante) >= poder(vivos.length, Math.floor(promAtaque));
 
-  // ---------- Economía: bolsa PRIVATE del atacante + trofeos PUBLIC ----------
-  if (gano) {
-    let bolsa = { oro: 0, trofeos: 0 };
-    try {
-      const bResp = await cloudSaveApi.getPrivateItems(context.projectId, context.playerId, ["bolsa"]);
-      const bItem = (bResp.data.results || []).find((i) => i.key === "bolsa");
-      if (bItem && bItem.value) bolsa = bItem.value;
-    } catch (e) { /* primera vez: no hay bolsa */ }
-    bolsa.oro = (bolsa.oro || 0) + ORO_PVP;
-    bolsa.trofeos = (bolsa.trofeos || 0) + TROFEOS_PVP;
-    await cloudSaveApi.setPrivateItem(context.projectId, context.playerId,
-      { key: "bolsa", value: { oro: bolsa.oro, trofeos: bolsa.trofeos } });
-    try {
-      await cloudSaveApi.setPublicItem(context.projectId, context.playerId,
-        { key: "trofeos", value: bolsa.trofeos });
-    } catch (e) { logger.warn("trofeos públicos no actualizados: " + e.message); }
-  }
+  // ---------- Economía: bolsa PROTECTED del atacante + trofeos PUBLIC ----------
+  // (blindada: si algo falla aquí, el combate sigue; la bolsa es del servidor)
+  try {
+    if (gano) {
+      let bolsa = { oro: 0, trofeos: 0 };
+      try {
+        const bResp = await cloudSaveApi.getProtectedItems(context.projectId, context.playerId, ["bolsa"]);
+        const bItem = (bResp.data.results || []).find((i) => i.key === "bolsa");
+        if (bItem && bItem.value) bolsa = bItem.value;
+      } catch (e) { /* primera vez: no hay bolsa */ }
+      bolsa.oro = (bolsa.oro || 0) + ORO_PVP;
+      bolsa.trofeos = (bolsa.trofeos || 0) + TROFEOS_PVP;
+      await cloudSaveApi.setProtectedItem(context.projectId, context.playerId,
+        { key: "bolsa", value: { oro: bolsa.oro, trofeos: bolsa.trofeos } });
+      try {
+        await cloudSaveApi.setPublicItem(context.projectId, context.playerId,
+          { key: "trofeos", value: bolsa.trofeos });
+      } catch (e) { logger.warn("trofeos públicos no actualizados: " + e.message); }
+    }
+  } catch (e) { logger.warn("economía omitida: " + e.message); }
 
   // ---------- Log de ataques PROTEGIDO del defensor (para venganzas) ----------
   try {

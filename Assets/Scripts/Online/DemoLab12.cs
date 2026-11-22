@@ -92,7 +92,10 @@ public class DemoLab12 : MonoBehaviour
             long mostrado = EventoLiveOps.PrecioMostrado(heroeEnOferta, precioCatalogo);
             Debug.Log($"[Lab12][PASO 3] {heroeEnOferta}: catálogo {precioCatalogo} -> en pantalla {mostrado}" +
                       (vista.Activo ? $" (descuento {vista.Descuento * 100:0.#} %)" : " (sin evento)"));
+            // LAB13: la tienda se abrió (origen = la demo lab12)
+            Telemetria.RegistrarTiendaAbierta("lab12");
             var intento = await ComprarAsync(heroeEnOferta);
+            RegistrarEventoCompra(intento);
             Debug.Log($"[Lab12][PASO 3] primer intento de compra: {intento?.Mensaje}");
 
             // ---- 3) Combates con el factor de daño + repetición idéntica (paso 2) ----
@@ -126,6 +129,7 @@ public class DemoLab12 : MonoBehaviour
 
             // ---- 4) La compra, ya con oro (paso 3) ----
             var compra = await ComprarAsync(heroeEnOferta);
+            RegistrarEventoCompra(compra);
             Debug.Log($"[Lab12][PASO 3] compra final: {compra?.Mensaje} · pagó {compra?.Precio} " +
                       $"(catálogo {compra?.PrecioBase}, descuento aplicado={compra?.DescuentoAplicado})");
 
@@ -153,6 +157,24 @@ public class DemoLab12 : MonoBehaviour
         }
     }
 
+    // LAB13: personaje_comprado (heroe, precio) o compra_fallida_sin_fondos (heroe, faltante)
+    // Solo cuenta como fallo POR FONDOS si el precio supera el saldo. Otros rechazos
+    // (ej: "ya lo tenés en el inventario") NO son falta de dinero: no se reportan como tales.
+    void RegistrarEventoCompra(ResultadoCompraDto r)
+    {
+        if (r == null) return;
+        if (r.Exito)
+        {
+            Telemetria.RegistrarCompra(r.Heroe, r.Precio);
+            return;
+        }
+        long faltante = r.Precio - r.Saldo;
+        if (faltante > 0)
+            Telemetria.RegistrarCompraFallida(r.Heroe, faltante);
+        else
+            Debug.Log("[DVSC] rechazo de compra sin relación con fondos (ej: héroe ya comprado): no se registra como compra_fallida_sin_fondos.");
+    }
+
     // El combate del S08: el servidor nace la semilla, aplica el evento y congela el log.
     async Task<ResultadoCombate> PelearAsync()
     {
@@ -163,8 +185,14 @@ public class DemoLab12 : MonoBehaviour
                 { "equipo", equipo },
                 { "idRival", rivalNpc }
             };
-            return await CloudCodeService.Instance.CallModuleEndpointAsync<ResultadoCombate>(
+            // LAB13: combate_iniciado (heroe líder, npc -> nivel_rival 1)
+            string heroeLider = (equipo != null && equipo.Count > 0) ? equipo[0] : "desconocido";
+            Telemetria.RegistrarCombateIniciado(heroeLider, 1);
+            var res = await CloudCodeService.Instance.CallModuleEndpointAsync<ResultadoCombate>(
                 "Tienda", "ResolverCombate", args);
+            if (res != null && !res.Rechazado)
+                Telemetria.RegistrarResultadoCombate(heroeLider, 1, res.TurnosJugados, res.Victoria);
+            return res;
         }
         catch (Exception e)
         {
@@ -189,8 +217,7 @@ public class DemoLab12 : MonoBehaviour
     }
 
     // El cliente manda SOLO el id: el precio y el descuento los decide el servidor.
-    async Task<ResultadoCompraDto> ComprarAsync(string idHeroe)
-    {
+    async Task<ResultadoCompraDto> ComprarAsync(string idHeroe)    {
         try
         {
             var args = new Dictionary<string, object> { { "idHeroe", idHeroe } };

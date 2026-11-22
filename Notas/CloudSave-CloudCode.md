@@ -82,3 +82,45 @@ Qué se reutiliza tal cual del lab (ya probado):
 - **Qué NO se toca**: el plan Firebase queda como respaldo; `#if UGS_ON` sigue gobernando que la nube compile o no; la lógica local (`SimuladorBatalla`, `RegistroDefensivo`) se mantiene para el modo sin conexión.
 - **Pendiente de limpieza (no urgente)**: en el dashboard quedan los módulos `TestA` y el C# `Tienda` (roto por pipeline); se puede borrar con `ugs cloud-code modules delete <name>` cuando se quiera dejar solo los 4 scripts (`Sonda`, `T9Buscar`, `T9Combate`, `T9Inventario`).
 - **Visual de cartas**: se quitaron los tintes por facción de `CartaSeleccion.cs` (el arte real manda); la carta usada solo oscurece a gris neutro.
+
+# LAB13 · Unity Analytics 6.0.3 (telemetría con consentimiento)
+
+## Arquitectura
+- **Paquete**: `com.unity.services.analytics 6.0.3` en `Packages/manifest.json`.
+- **`Assets/Scripts/Online/Telemetria.cs`**: wrapper estático. `IniciarRecoleccion()` es **async**: si Unity Services no está inicializado lo inicializa, si no hay sesión hace `SignInAnonymouslyAsync`, luego fija `UnityServices.ExternalUserId = jugador-<n>` y recién ahí `AnalyticsService.Instance.StartDataCollection()`. `Registrar()` va todo en try/catch (la telemetría NUNCA tumba el juego) y loguea `[DVSC] evento registrado: <nombre> (<param=valor...>)`.
+- **`Assets/Scripts/Online/PanelConsentimiento.cs`**: pantalla TVYA auto-montada por `PanelRival.Start()` (no hay que arrastrar nada al editor). ACEPTAR ⇒ inicia recolección + `juego_iniciado`; NO GRACIAS ⇒ SDK sigue apagado y los `Registrar()` se ignoran con log.
+- **Quirk importante**: entrando directo a la escena de juego salía *"The Analytics service has not been initialized. Please initialize Unity Services"* — resuelto con la inicialización dentro de `IniciarRecoleccion` (no depende de la escena Lab01).
+
+## Los 9 eventos (creados ANTES en el Event Manager del dashboard, ambiente production)
+| Evento | Parámetros | Punto del código |
+|---|---|---|
+| `juego_iniciado` | — | `PanelConsentimiento.Aceptar()` |
+| `tutorial_completado` | `segundos` (Integer) | `CartaSeleccion` al armar el 1er escuadrón de P1 ("tutorial" = primer arranque listo) |
+| `primer_combate_iniciado` | `heroe`, `nivel_rival` | la 1ª vez por sesión, junto a `combate_iniciado` |
+| `combate_iniciado` | `heroe`, `nivel_rival` | `ReproductorCombate.PelearAsync`, `DemoLab12.PelearAsync`, `PanelRival.Atacar` |
+| `combate_ganado` / `combate_perdido` | `heroe`, `nivel_rival`, `turnos` | al terminar el combate, con datos del response del servidor |
+| `tienda_abierta` | `origen` | `DemoLab12` (paso precio/compra) |
+| `personaje_comprado` | `heroe`, `precio` | `DemoLab12.RegistrarEventoCompra` si `Exito` |
+| `compra_fallida_sin_fondos` | `heroe`, `faltante` | ídem si rechazo (`faltante = precio − saldo`) |
+
+- `heroe` = carta **líder** (la 1ª del equipo); rival NPC ⇒ `nivel_rival = 1`; pvp ⇒ nivel real del rival.
+- Los eventos nacen **deshabilitados** en el Event Manager → hay que encender el toggle Enabled de cada uno.
+- Un evento que el Event Manager no conoce se descarta sin error (comportamiento esperado del servicio).
+- Tipos del dashboard: String / Integer / Float / Boolean / Timestamp (Integer para los numéricos).
+
+## Análisis (dashboard)
+- **Embudo**: `juego_iniciado → tutorial_completado → primer_combate_iniciado → personaje_comprado` (Apply → Save Funnel).
+- **Data Explorer**: barras `combate_ganado` vs `combate_perdido` agrupadas por el parámetro `heroe` (Column/Bar chart → Total → Save).
+- **Interpretación con cuidado**: mirar `nivel_rival` antes de concluir balance (ganar 100 % vs un rival débil no prueba nada); el % de caída por escalón del embudo dice dónde se pierde a los jugadores.
+
+## Entregable
+`ApellidoNombre_Lab13.zip` — proyecto instrumentado + `planillas/S13-plan-telemetria.md` + capturas (consola [DVSC], Event Manager, embudo, Data Explorer) + interpretación.
+
+
+## Conclusiones lab13 (medición real del 2026-11-16)
+1. **El esquema funciona de punta a punta**: consintimiento TVYA → ExternalUserId `jugador-<n>` → los 9 eventos registrados con parámetros tipados (`combate_ganado (heroe=guerrero_del_hacha, nivel_rival=1, turnos=7)`) y Valid Events subiendo en el Event Manager con Invalid=0. Un evento desconocido se descarta en silencio (comportamiento esperado del servicio).
+2. **Analytics no es contabilidad**: la economía real vive en Cloud Save protegido server-side (labs 9-12); los eventos reportan los importes COBRADOS por el servidor (precio 1200 del Mago), sin doble conteo local. Si un evento se pierde, el oro no se pierde.
+3. **El 100 % de victoria NO prueba balance**: 12 combates ganados y 0 perdidos, todos contra rivales de nivel 1 (Coloso de arena / npc_practica). El cruce héroe × `nivel_rival` es OBLIGATORIO antes de proponer cambios: el rival es débil, no la carta. No se propuso cambio de balance.
+4. **Fricción de compra real detectada**: catálogo 1200 vs saldo 680 post-compra → un jugador nuevo NO puede comprar otro héroe sin grind (+400 oro por victoria NPC). La métrica a vigilar es `compra_fallida_sin_fondos` con faltante real (tras corregir el falso `faltante=0` del caso "ya lo tenés": el código ya solo registra el evento cuando `precio > saldo`).
+5. **Límites declarados**: muestra = 1 instalación, ExternalUserId por sesión (no por instalación permanente), retención local, y un evento inválido histórico (faltante=0) anotado en la interpretación como limitación de la primera medición.
+

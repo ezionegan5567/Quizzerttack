@@ -37,12 +37,16 @@ public class PanelRival : MonoBehaviour
     bool ocupado;
     string rivalElegido = "";   // playerId del último BuscarRival
     string nombreRival = "";
+    int nivelRivalElegido;      // LAB13: nivel del rival para combate_iniciado
     List<string> equipoMio = new List<string>();
 
     void Start()
     {
         gestor = Object.FindFirstObjectByType<GestorTurnos>();
         if (panelUI == null) CrearUI();
+        // LAB13: consentimiento de telemetría (aparece una vez por sesión)
+        if (FindFirstObjectByType<PanelConsentimiento>() == null)
+            gameObject.AddComponent<PanelConsentimiento>();
     }
 
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
@@ -122,6 +126,7 @@ public class PanelRival : MonoBehaviour
             {
                 rivalElegido = res.RivalPlayerId;
                 nombreRival = res.Rival?.Nombre ?? "Rival";
+                nivelRivalElegido = res.Rival?.NivelCuenta ?? 0;
                 textoResultado.text = $"Rival: {nombreRival} (nivel {res.Rival?.NivelCuenta ?? 0}, {res.Rival?.Equipo?.Count ?? 0} héroes).\nPulsa ATACAR.";
                 botonAtacar.image.color = new Color(0.65f, 0.3f, 0.22f, 1f);
             }
@@ -155,9 +160,13 @@ public class PanelRival : MonoBehaviour
         try
         {
             textoEstado.text = npc ? "Atacando NPC de práctica..." : $"Atacando a {nombreRival}...";
+            // LAB13: combate_iniciado (heroe = primera carta del equipo; npc -> nivel 1)
+            string heroeLider = (equipoMio != null && equipoMio.Count > 0) ? equipoMio[0] : "desconocido";
+            Telemetria.RegistrarCombateIniciado(heroeLider, npc ? 1 : nivelRivalElegido);
             var r = npc
                 ? await UgsRival.ResolverCombateAsync("npc_practica_1", equipoMio)
                 : await UgsRival.ResolverCombateAsync(rivalElegido, equipoMio, miAlias);
+            Telemetria.RegistrarResultadoCombate(heroeLider, npc ? 1 : nivelRivalElegido, equipoMio.Count, r.Gano);
             textoResultado.text = $"{(r.Gano ? "¡VICTORIA!" : "Derrota.")} {r.Mensaje}\n(+{r.Oro} oro, +{r.Trofeos} trofeos)";
             textoEstado.text = "Combate resuelto en la nube (anti-cheat activo).";
         }

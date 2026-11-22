@@ -1,0 +1,9 @@
+{
+  "fields": [
+    { "key": "nivel", "value": 0, "op": "GE", "asc": true },
+    { "key": "nivel", "value": 100, "op": "LE", "asc": true }
+  ],
+  "returnKeys": ["defensa", "nivel"],
+  "limit": 20,
+  "offset": 0
+}

@@ -37,7 +37,8 @@ public static class UgsDefensa
             }
             catch (Exception e) when (e.Message != null && e.Message.Contains("already sign"))
             {
-                await Task.Delay(200); // hay un intento en curso: esperar
+                if (auth.IsSignedIn) return;  // ya hay sesión válida: listo
+                await Task.Delay(200);        // hay un intento en curso: esperar
             }
         }
     }
@@ -74,6 +75,10 @@ public static class UgsDefensa
         // 2) Autenticación anónima con perfil (forzado, demo repetible)
         perfil = LimpiarPerfil(perfil);
         var auth = AuthenticationService.Instance;
+        // LAB13: la telemetría puede haber dejado una sesión activa en otro perfil;
+        // SwitchProfile con sesión abierta lanza "already signed in" → cerrarla primero.
+        if (auth.IsSignedIn && auth.Profile != perfil)
+            auth.SignOut(false);
         if (auth.Profile != perfil)
             auth.SwitchProfile(perfil);
         await AsegurarSesionAsync();
@@ -113,8 +118,23 @@ public static class UgsDefensa
     {
         perfil = LimpiarPerfil(perfil);
         var auth = AuthenticationService.Instance;
-        if (auth.IsSignedIn) auth.SignOut(false); // false: conserva credenciales del perfil
-        auth.SwitchProfile(perfil);               // SignOut(true) borra el token y crea uno nuevo
+        // LAB13: la telemetría puede estar firmando sesión en este momento;
+        // SignOut/SwitchProfile en ese estado lanza "already signing in" / "Invalid state"
+        // (esta versión del SDK no expone el estado de firma) → reintentar hasta que salga.
+        for (int intento = 0; intento < 300; intento++) // ~60 s de tope
+        {
+            try
+            {
+                if (auth.IsSignedIn) auth.SignOut(false); // false: conserva credenciales del perfil
+                if (auth.Profile != perfil) auth.SwitchProfile(perfil);
+                break;
+            }
+            catch (Exception e) when (e.Message != null &&
+                (e.Message.Contains("already sign") || e.Message.Contains("Invalid state")))
+            {
+                await Task.Delay(200); // una firma en curso: esperar y reintentar
+            }
+        }
         await AsegurarSesionAsync();
         Debug.Log($"[UGS] Perfil activo: '{perfil}' (id {auth.PlayerId}).");
     }
