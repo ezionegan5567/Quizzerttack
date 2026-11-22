@@ -204,8 +204,20 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 2103577581}
         m_TargetAssemblyTypeName: ScenesManager, Assembly-CSharp
-        m_MethodName: SelectorScene
+        m_MethodName: MazoScene
         m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 387939684}
+        m_TargetAssemblyTypeName: SoundManager, Assembly-CSharp
+        m_MethodName: PlayExtra
+        m_Mode: 3
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -690,6 +702,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 387939683}
+  - component: {fileID: 387939684}
   - component: {fileID: 387939682}
   - component: {fileID: 387939681}
   - component: {fileID: 387939680}
@@ -709,7 +722,7 @@ AudioSource:
   m_GameObject: {fileID: 387939679}
   m_Enabled: 1
   serializedVersion: 4
-  OutputAudioMixerGroup: {fileID: 24300002, guid: 299fc2ce8a8f7f54aab96426262d084c, type: 2}
+  OutputAudioMixerGroup: {fileID: -8201878162973352142, guid: 6dd4cb2f590bbc146a5a9c8a399ed1f0, type: 2}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
   m_PlayOnAwake: 1
@@ -806,7 +819,7 @@ AudioSource:
   m_GameObject: {fileID: 387939679}
   m_Enabled: 1
   serializedVersion: 4
-  OutputAudioMixerGroup: {fileID: 24300002, guid: 299fc2ce8a8f7f54aab96426262d084c, type: 2}
+  OutputAudioMixerGroup: {fileID: -5962703843875081943, guid: 6dd4cb2f590bbc146a5a9c8a399ed1f0, type: 2}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
   m_PlayOnAwake: 1
@@ -903,13 +916,13 @@ AudioSource:
   m_GameObject: {fileID: 387939679}
   m_Enabled: 1
   serializedVersion: 4
-  OutputAudioMixerGroup: {fileID: 24300002, guid: 299fc2ce8a8f7f54aab96426262d084c, type: 2}
+  OutputAudioMixerGroup: {fileID: -2716918366657300550, guid: 6dd4cb2f590bbc146a5a9c8a399ed1f0, type: 2}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 5f08f570b230c0044911c41515e71327, type: 3}
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
@@ -1000,12 +1013,41 @@ Transform:
   m_GameObject: {fileID: 387939679}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 584.32623, y: 329.30325, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &387939684
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 387939679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9449042a384669c40abab05ee8e663c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SoundManager
+  audioMixer: {fileID: 24100000, guid: 6dd4cb2f590bbc146a5a9c8a399ed1f0, type: 2}
+  musicAudioSource: {fileID: 387939682}
+  sfxAudioSource: {fileID: 387939681}
+  extrasAudioSource: {fileID: 387939680}
+  extraVolume: ExtraVolume
+  musicVolume: MusicVolume
+  sfxVolume: SFXVolume
+  extrasSlider: {fileID: 0}
+  musicSlider: {fileID: 0}
+  sfxSlider: {fileID: 0}
+  musicTracks:
+  - {fileID: 8300000, guid: 5f08f570b230c0044911c41515e71327, type: 3}
+  sfxClips: []
+  extraClips:
+  - {fileID: 8300000, guid: 86bdcc8d427590b47b2fa214623ec5e7, type: 3}
+  - {fileID: 8300000, guid: 2d5b32fbd14516f4baca92cda73fcfba, type: 3}
+  - {fileID: 8300000, guid: 197dcb0e154f95549a58c7b09a7d099f, type: 3}
 --- !u!1 &423347635
 GameObject:
   m_ObjectHideFlags: 0
@@ -1260,7 +1302,7 @@ GameObject:
   - component: {fileID: 995855383}
   - component: {fileID: 995855382}
   m_Layer: 5
-  m_Name: Fade Out
+  m_Name: Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1414,6 +1456,18 @@ MonoBehaviour:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 387939684}
+        m_TargetAssemblyTypeName: SoundManager, Assembly-CSharp
+        m_MethodName: PlayExtra
+        m_Mode: 3
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 1
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
@@ -2162,14 +2216,14 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 2103577581}
-        m_TargetAssemblyTypeName: ScenesManager, Assembly-CSharp
-        m_MethodName: OptionsScene
-        m_Mode: 1
+      - m_Target: {fileID: 387939684}
+        m_TargetAssemblyTypeName: SoundManager, Assembly-CSharp
+        m_MethodName: PlayExtra
+        m_Mode: 3
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
+          m_IntArgument: 2
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
@@ -2221,7 +2275,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2103577580}
-  - component: {fileID: 2103577579}
   - component: {fileID: 2103577577}
   - component: {fileID: 2103577581}
   m_Layer: 0
@@ -2243,32 +2296,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9907b93ff00355e49b352ed665ce176c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneLoadManager
---- !u!114 &2103577579
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2103577576}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9449042a384669c40abab05ee8e663c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SoundManager
-  audioMixer: {fileID: 24100000, guid: 6dd4cb2f590bbc146a5a9c8a399ed1f0, type: 2}
-  musicAudioSource: {fileID: 387939682}
-  sfxAudioSource: {fileID: 387939682}
-  extrasAudioSource: {fileID: 387939682}
-  extraVolume: ExtraVolume
-  musicVolume: MusicVolume
-  sfxVolume: SFXVolume
-  extrasSlider: {fileID: 0}
-  musicSlider: {fileID: 0}
-  sfxSlider: {fileID: 0}
-  musicTracks:
-  - {fileID: 0}
-  sfxClips: []
-  extraClips: []
 --- !u!4 &2103577580
 Transform:
   m_ObjectHideFlags: 0
@@ -2393,6 +2420,18 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 387939684}
+        m_TargetAssemblyTypeName: SoundManager, Assembly-CSharp
+        m_MethodName: PlayExtra
+        m_Mode: 3
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 1
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &2145634203
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2436,7 +2475,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1615654414}
-  - {fileID: 491825182}
-  - {fileID: 1485479664}
   - {fileID: 2103577580}
   - {fileID: 387939683}
+  - {fileID: 491825182}
+  - {fileID: 1485479664}
