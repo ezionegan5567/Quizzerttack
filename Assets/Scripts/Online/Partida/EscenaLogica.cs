@@ -33,36 +33,23 @@ namespace QuizzerAttack.Partida
         }
 
         /// <summary>
-        /// La escena tiene dos manos fijas: las cartas de F1 son del jugador 1 y las de F2 del jugador 2. Cada jugador
-        /// online usa la mano que corresponde a SU facción, así que las dos facciones deben existir en la escena y ser distintas.
+        /// En modo online, la mano local queda asignada al lado 1 y la del rival al lado 2 por MazoFaccion.
+        /// Las cuatro facciones están admitidas, incluso si ambos jugadores eligieron la misma.
         /// Devuelve false (y un mensaje para mostrar) si no se puede.
         /// </summary>
         public static bool ResolverLados(string miFaccion, string rivalFaccion, IList<CartaEscena> cartas,
             out int ladoMio, out int ladoRival, out string error)
         {
-            ladoMio = LadoDe(miFaccion, cartas);
-            ladoRival = LadoDe(rivalFaccion, cartas);
+            ladoMio = cartas.Any(c => c.JugadorDueno == 1 && string.Equals(c.Faccion, miFaccion, StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
+            ladoRival = cartas.Any(c => c.JugadorDueno == 2 && string.Equals(c.Faccion, rivalFaccion, StringComparison.OrdinalIgnoreCase)) ? 2 : 0;
             error = "";
 
             if (ladoMio == 0 || ladoRival == 0)
             {
-                error = "La escena sólo tiene cartas de F1 y F2. Creen la partida con F1 y únanse con F2 (o al revés).";
-                return false;
-            }
-            if (ladoMio == ladoRival)
-            {
-                error = "Los dos jugadores usan la misma facción y la escena sólo tiene una mano por facción. Usen F1 contra F2.";
+                error = "No encuentro las cinco cartas de cada facción en sus lados. Recarga la escena e intenta entrar de nuevo.";
                 return false;
             }
             return true;
-        }
-
-        private static int LadoDe(string faccion, IList<CartaEscena> cartas)
-        {
-            if (string.IsNullOrEmpty(faccion)) return 0;
-            foreach (CartaEscena c in cartas)
-                if (string.Equals(c.Faccion, faccion, StringComparison.OrdinalIgnoreCase)) return c.JugadorDueno;
-            return 0;
         }
 
         // ---------------------------------------------------------------- qué cambiar en el campo

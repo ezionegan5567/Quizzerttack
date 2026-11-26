@@ -2,7 +2,7 @@ namespace QuizzerMatch;
 
 // Mismos nombres que EfectoH / ObjetivoH de Assets/Scripts/Combate/DatosFacciones.cs.
 // El catálogo (generado) conserva los 80 datos; el motor sólo implementa un subconjunto
-// (ver Reglas.EfectosSoportados). Lo demás se rechaza con un mensaje claro, no se ignora en silencio.
+// (ver Reglas.EfectosSoportados), que debe mantenerse alineado con Peleador.cs.
 public enum Efecto
 {
     Ninguno,
@@ -21,9 +21,11 @@ public enum Objetivo { Ninguno, Enemigo, Enemigos, Aliado, Aliados, Propio }
 
 public record Habilidad(
     string Nombre, Efecto Efecto, Objetivo Objetivo, int Valor, int Duracion,
-    Efecto Efecto2, Objetivo Objetivo2, int Valor2, int Duracion2);
+    Efecto Efecto2, Objetivo Objetivo2, int Valor2, int Duracion2,
+    float Robo = 0f, bool Fuego = false);
 
-public record HeroeDef(string Id, string Nombre, string Faccion, int Vida, int Ataque, Habilidad[] Habilidades);
+public record HeroeDef(string Id, string Nombre, string Faccion, int Vida, int Ataque,
+    Habilidad[] Habilidades, Efecto Pasiva = Efecto.Ninguno);
 
 public record PreguntaDef(int Id, string Texto, string[] Opciones, int Correcta);
 

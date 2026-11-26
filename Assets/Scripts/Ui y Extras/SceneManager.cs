@@ -2,6 +2,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+#if UGS_ON
+using QuizzerAttack.Partida;
+#endif
 
 
 public class ScenesManager : MonoBehaviour
@@ -64,7 +67,30 @@ public class ScenesManager : MonoBehaviour
     public void MainPage() => StartTransition("OpeningMainScene");
     public void SelectorScene() => StartTransition("SelectorScene");
     public void Map1() => StartTransition("TestCinematic");
-    public void MazoScene() => StartTransition("SeleccionaMazo");
+    public void MazoScene()
+    {
+#if UGS_ON
+        // El botón Jugar del menú principal es la entrada al PvP.
+        // Si aún no hay identidad, abrir primero el acceso a cuenta.
+        if (!ServiciosBootstrap.HaySesion)
+        {
+            StartTransition("Lab01-Autenticacion");
+            return;
+        }
+
+        const string escenaBatalla = "campo de batalla";
+        if (!Application.CanStreamedLevelBeLoaded(escenaBatalla))
+        {
+            Debug.LogError("La escena 'campo de batalla' no está habilitada en Build Settings.");
+            return;
+        }
+
+        PanelPartidaOnline.PrepararEntradaDesdeMenu();
+        StartTransition(escenaBatalla);
+#else
+        StartTransition("SeleccionaMazo");
+#endif
+    }
     public void OptionsScene() => StartTransition("EscenaOpciones");
     public void Winning() => StartTransition("WinnerScene");
 

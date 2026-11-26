@@ -1,5 +1,5 @@
-// ============ PARTIDA ONLINE POR TURNOS: PANEL DE PRUEBA (requiere UGS_ON) ============
-// Panel IMGUI (tecla F7) para jugar la partida online completa sin tocar el resto de la escena:
+// ============ SALA PvP ONLINE POR TURNOS (requiere UGS_ON) ============
+// Sala de emparejamiento mostrada al entrar desde el botón Jugar del menú principal:
 // crear/unirse, colocar, elegir habilidad, responder el quiz, pasar y abandonar. Dibuja SOLO lo que
 // dice la vista del servidor y no decide nada. Se actualiza por push (aviso {type, matchId} -> GetMatchState)
 // con un sondeo de respaldo cada ~10 s.
@@ -8,22 +8,25 @@
 // Para probar con UN solo Editor: usa dos perfiles (campo "perfil" + botón "Cambiar perfil"); cada
 // perfil es un jugador anónimo distinto. Con dos Editores (o ParrelSync) cada uno usa su perfil por defecto.
 //
-// SIGUIENTE PASO (para el equipo): sustituir este panel por la escena real, haciendo que GestorTurnos,
-// CartaSeleccion y Peleador PINTEN la VistaPartidaDto en vez de decidir fases y peleas en local.
+// En la escena real, EscenaOnline conecta las cartas y los peleadores a la vista autoritativa del servidor.
 
 #if UGS_ON
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Unity.Services.Authentication;
+using Unity.Services.Core;
 using UnityEngine;
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-using UnityEngine.InputSystem;
-#endif
+using UnityEngine.SceneManagement;
 
 namespace QuizzerAttack.Partida
 {
+    [DefaultExecutionOrder(-10000)]
     public class PanelPartidaOnline : MonoBehaviour
     {
+        /// <summary>Señal de un solo uso desde Lab01: abre el lobby al entrar a la escena de batalla.</summary>
+        public static bool EntradaDesdeMenuPvP;
+
         [Header("Perfil (para jugar los dos lados desde un solo Editor)")]
         public string perfil = "principal";
 
@@ -35,23 +38,70 @@ namespace QuizzerAttack.Partida
         bool ocupado;
         float proximoSondeo;
         bool sesionIniciada;
+        bool entrarAlCombateAlUnirse;
         string mensaje = "";
         Vector2 scroll;
         readonly PartidaOnlineService servicio = PartidaOnlineService.Instancia;
 
-#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
-        bool TeclaAbrir() { var kb = Keyboard.current; return kb != null && kb.f7Key.wasPressedThisFrame; }
-#else
-        bool TeclaAbrir() { return Input.GetKeyDown(KeyCode.F7); }
-#endif
+        void Awake()
+        {
+            // La escena de batalla también sirve al modo local. Si venimos del botón PvP,
+            // detener el flujo local ANTES de que GestorTurnos/MonedaInicial/Temporizador
+            // ejecuten Start y avancen fases mientras los jugadores esperan en la sala.
+            if (!EntradaDesdeMenuPvP) return;
+
+            var gestor = FindFirstObjectByType<GestorTurnos>();
+            if (gestor != null)
+            {
+                gestor.StopAllCoroutines();
+                gestor.enabled = false;
+                if (gestor.botonPasarTurno != null) gestor.botonPasarTurno.interactable = false;
+            }
+
+            var temporizador = FindFirstObjectByType<Temporizador>();
+            if (temporizador != null)
+            {
+                temporizador.PausarTemporizador();
+                temporizador.enabled = false;
+            }
+
+            var moneda = FindFirstObjectByType<MonedaInicial>();
+            if (moneda != null)
+            {
+                moneda.StopAllCoroutines();
+                moneda.enabled = false;
+                if (moneda.monedaVisual != null) moneda.monedaVisual.gameObject.SetActive(false);
+                if (moneda.textoMoneda != null) moneda.textoMoneda.text = "";
+            }
+
+            foreach (var carta in FindObjectsByType<CartaSeleccion>(FindObjectsSortMode.None))
+            {
+                var boton = carta != null ? carta.GetComponent<UnityEngine.UI.Button>() : null;
+                if (boton != null) boton.interactable = false;
+            }
+        }
 
         void OnEnable() { servicio.Fallo += AlFallar; }
         void OnDisable() { servicio.Fallo -= AlFallar; }
         void AlFallar(string texto) { mensaje = "ERROR: " + texto; }
 
+        public static void PrepararEntradaDesdeMenu()
+        {
+            PartidaOnlineService.Instancia.Olvidar();
+            EntradaDesdeMenuPvP = true;
+        }
+
+        void Start()
+        {
+            if (!EntradaDesdeMenuPvP) return;
+            EntradaDesdeMenuPvP = false;
+            entrarAlCombateAlUnirse = true;
+            visible = true;
+            _ = IniciarSesionConLaCuentaActual();
+        }
+
         async void Update()
         {
-            if (TeclaAbrir()) visible = !visible;
             if (!sesionIniciada || ocupado) return;
 
             // Los push sólo avisan: al recibir uno, se pide la vista privada al servidor (GetMatchState).
@@ -84,6 +134,30 @@ namespace QuizzerAttack.Partida
             ocupado = false;
         }
 
+        async System.Threading.Tasks.Task IniciarSesionConLaCuentaActual()
+        {
+            ocupado = true;
+            try
+            {
+                // La escena Lab01 ya inició sesión en development. Reutilizamos esa identidad,
+                // en vez de cambiarla por el perfil anónimo de las pruebas.
+                if (UnityServices.State != ServicesInitializationState.Initialized)
+                    await ServiciosBootstrap.InicializarAsync("development");
+
+                if (!AuthenticationService.Instance.IsSignedIn)
+                {
+                    await UgsDefensa.IniciarAsync(perfil);
+                }
+
+                if (!await servicio.VerificarProtocoloAsync()) return;
+                await servicio.SuscribirPushAsync();
+                sesionIniciada = true;
+                mensaje = "Sesión online lista como " + AuthenticationService.Instance.PlayerId;
+            }
+            catch (System.Exception e) { mensaje = "ERROR al preparar PvP: " + e.Message; }
+            finally { ocupado = false; }
+        }
+
         async System.Threading.Tasks.Task Ejecutar(System.Threading.Tasks.Task<VistaPartidaDto> llamada)
         {
             ocupado = true;
@@ -94,6 +168,25 @@ namespace QuizzerAttack.Partida
                     ? vista.Mensaje : $"[{vista.Resultado}] {vista.Mensaje}";
             ocupado = false;
             proximoSondeo = Time.unscaledTime + PartidaOnlineService.IntervaloSondeoSeg;
+            IntentarEntrarAlCombate();
+        }
+
+        void IntentarEntrarAlCombate()
+        {
+            if (!entrarAlCombateAlUnirse || servicio.Ultima == null
+                || servicio.Ultima.Estado != EstadoPartidaValores.EnJuego
+                || EscenaOnline.Instancia != null) return;
+
+            string error = EscenaOnline.Activar(servicio);
+            if (error.Length > 0)
+            {
+                mensaje = "ERROR al abrir el combate: " + error;
+                return;
+            }
+
+            entrarAlCombateAlUnirse = false;
+            visible = false;
+            mensaje = "Partida conectada. El combate online por turnos comenzó.";
         }
 
         void OnGUI()
@@ -101,7 +194,7 @@ namespace QuizzerAttack.Partida
             if (!visible) return;
             GUILayout.BeginArea(new Rect(10, 10, 560, Screen.height - 20), GUI.skin.box);
             scroll = GUILayout.BeginScrollView(scroll);
-            GUILayout.Label("PARTIDA ONLINE (F7)  —  autoridad: Cloud Code · avisos: push");
+            GUILayout.Label("SALA PvP ONLINE  —  autoridad: servidor");
             GUI.enabled = !ocupado;
 
             if (!sesionIniciada)
@@ -167,14 +260,17 @@ namespace QuizzerAttack.Partida
                 GUILayout.EndHorizontal();
 
                 // Dibuja la partida en la escena real (cartas, casillas y peleadores) en vez de en este panel.
-                // Sólo funciona en la escena "campo de batalla" y con F1 contra F2. Ver EscenaOnline.cs.
                 GUILayout.BeginHorizontal();
-                if (EscenaOnline.Instancia == null)
+                if (servicio.Ultima != null && servicio.Ultima.Estado == EstadoPartidaValores.EsperandoRival)
+                {
+                    GUILayout.Label("Esperando a que se una el otro jugador para abrir el campo de batalla.");
+                }
+                else if (EscenaOnline.Instancia == null)
                 {
                     if (GUILayout.Button("Jugar en la escena (campo de batalla)"))
                     {
                         string error = EscenaOnline.Activar(servicio);
-                        mensaje = error.Length > 0 ? "ERROR: " + error : "Modo escena activado. F7 oculta este panel.";
+                        mensaje = error.Length > 0 ? "ERROR: " + error : "Modo escena activado. La sala se cerrará al comenzar el combate.";
                     }
                 }
                 else GUILayout.Label("Modo escena ACTIVO (recarga la escena para volver al juego local)");

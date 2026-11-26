@@ -302,7 +302,7 @@ public class Peleador : MonoBehaviour
         if (esSimulacion) return;
         if (gestor == null) gestor = Object.FindFirstObjectByType<GestorTurnos>();
 
-        if (gestor != null && gestor.fase == 5)
+        if (!QuizzerAttack.Partida.ModoOnline.Activo && gestor != null && gestor.fase == 5)
         {
             Debug.Log("La pelea es automática.");
             return;

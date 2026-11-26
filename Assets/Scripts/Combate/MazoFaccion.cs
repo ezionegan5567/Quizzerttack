@@ -58,7 +58,37 @@ public class MazoFaccion : MonoBehaviour
             if (st != null) { c.vida = st[0]; c.ataque = st[1]; }
             c.jugadorDueno = dueno;
             c.faccion = faccion;
+            c.RefrescarSprite();
             Debug.Log($"Carta {cartas[i].name} = {nombres[i]} ({faccion} P{dueno})");
         }
+    }
+
+    /// <summary>
+    /// Configura las dos manos desde la facción que devolvió el servidor para este cliente.
+    /// El jugador local se dibuja a la izquierda (P1) en su pantalla y el rival a la derecha
+    /// (P2). Solo se llama al activar una partida online; la partida local conserva el mazo
+    /// elegido en el Inspector.
+    /// </summary>
+    public bool PrepararManosOnline(string faccionLocal, string faccionRival)
+    {
+        string local = NormalizarFaccionOnline(faccionLocal);
+        string rival = NormalizarFaccionOnline(faccionRival);
+        if (local == null || rival == null)
+            return false;
+        if (cartasP1 == null || cartasP1.Length < 5 || cartasP2 == null || cartasP2.Length < 5)
+            return false;
+
+        faccionP1 = local;
+        faccionP2 = rival;
+        CargarMazo(cartasP1, local, 1);
+        CargarMazo(cartasP2, rival, 2);
+        return true;
+    }
+
+    static string NormalizarFaccionOnline(string faccion)
+    {
+        if (string.IsNullOrWhiteSpace(faccion)) return null;
+        string normalizada = faccion.Trim().ToUpperInvariant();
+        return roster.ContainsKey(normalizada) ? normalizada : null;
     }
 }

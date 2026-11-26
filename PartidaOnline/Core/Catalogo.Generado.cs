@@ -25,7 +25,7 @@ public static partial class Catalogo
             new Habilidad("Endurecimiento", Efecto.BuffDef, Objetivo.Propio, 50, 1, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
             new Habilidad("Perforacion y devolucion", Efecto.Dano, Objetivo.Enemigo, 20, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
             new Habilidad("Escudo para todos", Efecto.BuffDefZona, Objetivo.Aliados, 25, 2, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
-        }));
+        }, Efecto.ContadorDevolver));
         destino.Add(new HeroeDef("enano", "Enano", "F1", 125, 24, new[]
         {
             new Habilidad("Golpe martillo", Efecto.Dano, Objetivo.Enemigo, 26, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
@@ -35,16 +35,16 @@ public static partial class Catalogo
         }));
         destino.Add(new HeroeDef("vampiro", "Vampiro", "F1", 110, 28, new[]
         {
-            new Habilidad("Mordida", Efecto.Dano, Objetivo.Enemigo, 24, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
+            new Habilidad("Mordida", Efecto.Dano, Objetivo.Enemigo, 24, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0, 0.25f, false),
             new Habilidad("Ataque garra", Efecto.Dano, Objetivo.Enemigo, 26, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
             new Habilidad("Intimidar", Efecto.Intimidar, Objetivo.Enemigo, 25, 2, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
             new Habilidad("Ataque sangre", Efecto.Dano, Objetivo.Enemigo, 20, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
-        }));
+        }, Efecto.ContadorSangre));
         destino.Add(new HeroeDef("mago", "Mago", "F2", 90, 20, new[]
         {
             new Habilidad("Curacion en area", Efecto.CurarZona, Objetivo.Aliados, 25, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
             new Habilidad("Campo electrico", Efecto.DanoTodos, Objetivo.Enemigos, 14, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
-            new Habilidad("Bola de fuego", Efecto.Dano, Objetivo.Enemigo, 30, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
+            new Habilidad("Bola de fuego", Efecto.Dano, Objetivo.Enemigo, 30, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0, 0f, true),
             new Habilidad("Paralisis", Efecto.Paralisis, Objetivo.Enemigo, 0, 2, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
         }));
         destino.Add(new HeroeDef("cazador", "Cazador", "F2", 85, 30, new[]
@@ -87,7 +87,7 @@ public static partial class Catalogo
             new Habilidad("Disparo", Efecto.Dano, Objetivo.Enemigo, 28, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
             new Habilidad("Ojo de aguila", Efecto.BuffAtk, Objetivo.Propio, 20, 2, Efecto.Punteria, Objetivo.Propio, 0, 2),
             new Habilidad("Disparo multiple", Efecto.DanoTodos, Objetivo.Enemigos, 16, 0, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
-            new Habilidad("Bala incineradora", Efecto.Dano, Objetivo.Enemigo, 18, 0, Efecto.Quemadura, Objetivo.Enemigo, 7, 2),
+            new Habilidad("Bala incineradora", Efecto.Dano, Objetivo.Enemigo, 18, 0, Efecto.Quemadura, Objetivo.Enemigo, 7, 2, 0f, true),
         }));
         destino.Add(new HeroeDef("escudero", "Escudero", "F3", 150, 14, new[]
         {
@@ -140,7 +140,7 @@ public static partial class Catalogo
         }));
         destino.Add(new HeroeDef("draconiano", "Draconiano", "F4", 120, 30, new[]
         {
-            new Habilidad("Llamarada", Efecto.DanoTodos, Objetivo.Enemigos, 16, 0, Efecto.Quemadura, Objetivo.Enemigos, 6, 2),
+            new Habilidad("Llamarada", Efecto.DanoTodos, Objetivo.Enemigos, 16, 0, Efecto.Quemadura, Objetivo.Enemigos, 6, 2, 0f, true),
             new Habilidad("Garras", Efecto.Dano, Objetivo.Enemigo, 18, 0, Efecto.Sangrado, Objetivo.Enemigo, 8, 2),
             new Habilidad("Endurecimiento", Efecto.BuffDef, Objetivo.Propio, 50, 1, Efecto.Ninguno, Objetivo.Ninguno, 0, 0),
             new Habilidad("Doble golpe", Efecto.Dano, Objetivo.Enemigo, 20, 0, Efecto.Dano, Objetivo.Enemigo, 20, 0),

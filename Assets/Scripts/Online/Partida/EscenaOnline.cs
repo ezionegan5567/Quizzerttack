@@ -12,8 +12,8 @@
 //
 // Qué NO hace (a propósito, para que lo hagan ustedes: ver docs/TAREAS.md, Tarea 3):
 //   - Animaciones: la pelea llega ya resuelta y se muestra como texto; la vida cambia de golpe.
-//   - Efectos de estado (buffs, veneno...): el servidor los calcula pero esta escena no los dibuja.
-//   - Más facciones que F1 y F2: la escena sólo tiene esas dos manos (ver EscenaLogica.ResolverLados).
+//   - Animaciones de pelea: el servidor resuelve el combate y actualiza la vida; la escena muestra el registro textual.
+//     Los estados siguen siendo autoritativos en el servidor y se ven también desde el panel de partida F7.
 // Para volver al juego local, recarguen la escena.
 
 #if UGS_ON
@@ -56,6 +56,15 @@ namespace QuizzerAttack.Partida
             GestorTurnos gestor = UnityEngine.Object.FindFirstObjectByType<GestorTurnos>();
             if (gestor == null) return "Esta no es la escena del campo de batalla (no hay GestorTurnos).";
             if (servicio.CodigoActual.Length == 0) return "Crea o únete a una partida antes de jugar en la escena.";
+            VistaPartidaDto partida = servicio.Ultima;
+            if (partida == null || partida.Estado != EstadoPartidaValores.EnJuego)
+                return "La partida todavía no está lista. Espera a que se una el otro jugador.";
+
+            MazoFaccion mazo = UnityEngine.Object.FindFirstObjectByType<MazoFaccion>();
+            if (mazo == null)
+                return "Esta escena no tiene el componente MazoFaccion para preparar las manos online.";
+            if (!mazo.PrepararManosOnline(partida.MiFaccion, partida.RivalFaccion))
+                return "No se pudieron preparar las dos manos. Verifica que ambas facciones sean válidas (F1-F4) y que haya cinco cartas por lado.";
 
             GameObject go = new GameObject("EscenaOnline");
             go.AddComponent<EscenaOnline>().Iniciar(servicio, gestor);

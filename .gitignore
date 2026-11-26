@@ -128,3 +128,8 @@ InitTestScene*.unity*
 /_sonda/obj/
 /TestA/bin/
 /TestA/obj/
+
+# Lab14: los respaldos (.ccmzip) y las transcripciones de despliegue no se versionan.
+/recursos/respaldos/*.ccmzip
+/recursos/evidencias/*.log
+/recursos/evidencias/*.txt

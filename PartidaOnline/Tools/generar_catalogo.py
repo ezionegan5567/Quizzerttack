@@ -61,8 +61,8 @@ def generar_catalogo() -> str:
 
     # Héroes: { "clave", new DatosPeleador("Display", new InfoHabilidad[]{ ... })[, pasiva] },
     heroes = {}
-    for m in re.finditer(r'\{\s*"(\w+)",\s*new DatosPeleador\("([^"]+)",\s*new InfoHabilidad\[\]\{(.*?)\}\s*(?:,\s*EfectoH\.\w+)?\)\s*\}', codigo, re.S):
-        clave, display, cuerpo = m.group(1), m.group(2), m.group(3)
+    for m in re.finditer(r'\{\s*"(\w+)",\s*new DatosPeleador\("([^"]+)",\s*new InfoHabilidad\[\]\{(.*?)\}\s*(?:,\s*EfectoH\.(\w+))?\)\s*\}', codigo, re.S):
+        clave, display, cuerpo, pasiva = m.group(1), m.group(2), m.group(3), m.group(4) or "Ninguno"
         habilidades = []
         for h in re.finditer(r'H\((.*?)\),\s*(?:\n|$)', cuerpo + "\n", re.S):
             args = partir_argumentos(h.group(1))
@@ -76,8 +76,10 @@ def generar_catalogo() -> str:
             objetivo2 = resto[3].replace("ObjetivoH.", "") if len(resto) > 3 else "Ninguno"
             valor2 = int(resto[4]) if len(resto) > 4 else 0
             duracion2 = int(resto[5]) if len(resto) > 5 else 0
-            habilidades.append((nombre, efecto, objetivo, valor, duracion, efecto2, objetivo2, valor2, duracion2))
-        heroes[clave] = (display, habilidades)
+            robo = float(resto[6].rstrip("fF")) if len(resto) > 6 else 0.0
+            fuego = resto[7].lower() == "true" if len(resto) > 7 else False
+            habilidades.append((nombre, efecto, objetivo, valor, duracion, efecto2, objetivo2, valor2, duracion2, robo, fuego))
+        heroes[clave] = (display, habilidades, pasiva)
 
     # Facciones: { "F1", new string[]{ "Bufeador", ... } }
     facciones = {}
@@ -98,14 +100,15 @@ def generar_catalogo() -> str:
               "    static partial void Cargar(List<HeroeDef> destino)", "    {"]
     for f in sorted(facciones):
         for clave in facciones[f]:
-            display, habs = heroes[clave]
+            display, habs, pasiva = heroes[clave]
             vida, ataque = stats[clave]
             hid = IDS.get(clave, clave)
             lineas.append(f'        destino.Add(new HeroeDef({cs(hid)}, {cs(display)}, {cs(faccion_de[clave])}, {vida}, {ataque}, new[]')
             lineas.append("        {")
-            for (n, e, o, v, d, e2, o2, v2, d2) in habs:
-                lineas.append(f"            new Habilidad({cs(n)}, Efecto.{e}, Objetivo.{o}, {v}, {d}, Efecto.{e2}, Objetivo.{o2}, {v2}, {d2}),")
-            lineas.append("        }));")
+            for (n, e, o, v, d, e2, o2, v2, d2, robo, fuego) in habs:
+                robo_cs = f"{robo:g}f"
+                lineas.append(f"            new Habilidad({cs(n)}, Efecto.{e}, Objetivo.{o}, {v}, {d}, Efecto.{e2}, Objetivo.{o2}, {v2}, {d2}, {robo_cs}, {str(fuego).lower()}),")
+            lineas.append(f"        }}, Efecto.{pasiva}));")
     lineas += ["    }", "}", ""]
     return "\n".join(lineas)
 

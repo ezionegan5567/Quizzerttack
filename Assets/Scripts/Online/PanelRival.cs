@@ -44,9 +44,6 @@ public class PanelRival : MonoBehaviour
     {
         gestor = Object.FindFirstObjectByType<GestorTurnos>();
         if (panelUI == null) CrearUI();
-        // LAB13: consentimiento de telemetría (aparece una vez por sesión)
-        if (FindFirstObjectByType<PanelConsentimiento>() == null)
-            gameObject.AddComponent<PanelConsentimiento>();
     }
 
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER

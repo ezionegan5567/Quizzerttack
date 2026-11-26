@@ -17,5 +17,8 @@
       "cantidad": 0
     }
   },
-  "types": {}
+  "types": {
+    "campana_evento": "JSON",
+    "bonus_bienvenida": "JSON"
+  }
 }

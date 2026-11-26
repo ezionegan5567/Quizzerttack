@@ -11,5 +11,7 @@
       }
     }
   },
-  "types": {}
+  "types": {
+    "temporada": "JSON"
+  }
 }

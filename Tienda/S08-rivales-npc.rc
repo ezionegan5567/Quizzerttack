@@ -47,5 +47,8 @@
       }
     ]
   },
-  "types": {}
+  "types": {
+    "tabla_heroes": "JSON",
+    "rivales_npc": "JSON"
+  }
 }

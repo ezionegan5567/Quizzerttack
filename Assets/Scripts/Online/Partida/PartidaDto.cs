@@ -19,7 +19,7 @@ namespace QuizzerAttack.Partida
     /// </summary>
     public static class GameProtocol
     {
-        public const int Version = 1;
+        public const int Version = 2;
     }
 
     [Serializable]

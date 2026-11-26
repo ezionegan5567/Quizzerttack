@@ -1,15 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- LAB14 fase 1: pruebas locales SIN nube. Si algo de esto falla, el despliegue
+       se aborta ANTES de tocar el backend (dotnet test). -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
-    <Configurations>Debug;Release</Configurations>
+    <AssemblyName>Tienda.Pruebas</AssemblyName>
+    <RootNamespace>Tienda.Pruebas</RootNamespace>
   </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
-    <PackageReference Include="xunit" Version="2.7.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Tienda\Tienda.csproj" />
   </ItemGroup>

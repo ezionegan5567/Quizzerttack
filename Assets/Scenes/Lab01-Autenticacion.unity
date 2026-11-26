@@ -334,7 +334,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c1f2a3b4d5e4f60718293a4b5c6d7e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PanelAuthLab01
-  entorno: production
+  entorno: development
   usuarioEjemplo: alexander.dvsc
   claveEjemplo: Quizzer2026!
   escenaSiguiente: Main Menu

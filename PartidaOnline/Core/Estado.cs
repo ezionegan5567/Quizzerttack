@@ -57,6 +57,10 @@ public class PeleadorEstado
     /// <summary>Habilidades ya usadas en este ciclo (GDD: no se repiten hasta agotar el repertorio).</summary>
     public List<int> Usadas { get; set; } = new();
     public List<Buff> Buffs { get; set; } = new();
+    public string ProtectorJugadorId { get; set; } = "";
+    public string ProtectorHeroeId { get; set; } = "";
+    public int StacksDevolver { get; set; }
+    public int StacksSangre { get; set; }
 
     public bool EstaVivo => Vida > 0;
 }

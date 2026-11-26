@@ -29,7 +29,7 @@ using UnityEngine.UI;
 public class PanelAuthLab01 : MonoBehaviour
 {
     [Header("Config")]
-    public string entorno = "production";
+    public string entorno = "development";
     [Tooltip("Solo se usa para rellenar el campo de usuario en la demo.")]
     public string usuarioEjemplo = "";
     [Tooltip("Informativo: la clave no se rellena nunca por seguridad.")]
@@ -141,12 +141,16 @@ public class PanelAuthLab01 : MonoBehaviour
     public void OnInvitado()
     {
         Mensaje("Entrando como invitado...", false);
-        Ejecutar("Jugar como invitado", () => ServiciosBootstrap.LoginAnonimoAsync(), () =>
+        Ejecutar("Jugar como invitado", async () =>
+        {
+            await ServiciosBootstrap.InicializarAsync(entorno);
+            await ServiciosBootstrap.LoginAnonimoAsync();
+        }, () =>
         {
             Mensaje(ServiciosBootstrap.EsInvitado
                 ? "Listo. Estás jugando como invitado."
                 : "Sesión recuperada: " + ServiciosBootstrap.UsuarioActual, false);
-            IrASesion();
+            VolverAlMenuPrincipal();
         });
     }
 
@@ -203,18 +207,26 @@ public class PanelAuthLab01 : MonoBehaviour
 
         if (modoVincular)
         {
-            Ejecutar("Guardar progreso (unificar)", () => ServiciosBootstrap.UnificarConUsuarioAsync(usuario, clave), () =>
+            Ejecutar("Guardar progreso (unificar)", async () =>
+            {
+                await ServiciosBootstrap.InicializarAsync(entorno);
+                await ServiciosBootstrap.UnificarConUsuarioAsync(usuario, clave);
+            }, () =>
             {
                 Mensaje("Progreso guardado. Ya podés entrar con tu usuario desde cualquier lado.", false);
-                IrASesion();
+                VolverAlMenuPrincipal();
             });
         }
         else
         {
-            Ejecutar("Crear cuenta", () => ServiciosBootstrap.CrearCuentaAsync(usuario, clave), () =>
+            Ejecutar("Crear cuenta", async () =>
+            {
+                await ServiciosBootstrap.InicializarAsync(entorno);
+                await ServiciosBootstrap.CrearCuentaAsync(usuario, clave);
+            }, () =>
             {
                 Mensaje("Cuenta creada. ¡Bienvenido!", false);
-                IrASesion();
+                VolverAlMenuPrincipal();
             });
         }
     }
@@ -223,10 +235,14 @@ public class PanelAuthLab01 : MonoBehaviour
     {
         string usuario = entrarUsuario != null ? entrarUsuario.text.Trim() : "";
         string clave = entrarClave != null ? entrarClave.text : "";
-        Ejecutar("Iniciar sesión", () => ServiciosBootstrap.IniciarSesionAsync(usuario, clave), () =>
+        Ejecutar("Iniciar sesión", async () =>
+        {
+            await ServiciosBootstrap.InicializarAsync(entorno);
+            await ServiciosBootstrap.IniciarSesionAsync(usuario, clave);
+        }, () =>
         {
             Mensaje("Sesión iniciada.", false);
-            IrASesion();
+            VolverAlMenuPrincipal();
         });
     }
 
@@ -253,6 +269,17 @@ public class PanelAuthLab01 : MonoBehaviour
 
         AnadirLinea($"[Lab01] JUGAR -> escena '{escenaSiguiente}' con el Player ID {ServiciosBootstrap.PlayerIdActual}.");
         SceneManager.LoadScene(escenaSiguiente);
+    }
+
+    void VolverAlMenuPrincipal()
+    {
+        const string menu = "Main Menu";
+        if (!Application.CanStreamedLevelBeLoaded(menu))
+        {
+            Mensaje("No encuentro la escena Main Menu en Build Settings.", true);
+            return;
+        }
+        SceneManager.LoadScene(menu);
     }
 
     public void OnCerrarSesion()
@@ -553,8 +580,8 @@ public class PanelAuthLab01 : MonoBehaviour
 
         txtNombreSesion = Texto(t, "Titulo", "", new Vector2(0f, 248f), new Vector2(560f, 40f), 30f, Dorado, TextAlignmentOptions.Center, true);
 
-        // Con la sesión abierta, este es el botón que sale del lab y entra al juego.
-        Boton(t, "BtnJugar", "JUGAR (" + escenaSiguiente + ")", new Vector2(0f, 192f), new Vector2(520f, 56f), Verde, OnJugar);
+        // Después de autenticar, se continúa desde el menú principal.
+        Boton(t, "BtnVolverMenu", "CONTINUAR AL MENÚ PRINCIPAL", new Vector2(0f, 192f), new Vector2(520f, 56f), Verde, VolverAlMenuPrincipal);
 
         var marco = new GameObject("MarcoEstado", typeof(RectTransform), typeof(Image));
         marco.transform.SetParent(t, false);

@@ -183,7 +183,8 @@ public class DemoLab12 : MonoBehaviour
             var args = new Dictionary<string, object>
             {
                 { "equipo", equipo },
-                { "idRival", rivalNpc }
+                { "idRival", rivalNpc },
+                { "idOperacion", Guid.NewGuid().ToString("N") } // LAB14: trazabilidad por operación
             };
             // LAB13: combate_iniciado (heroe líder, npc -> nivel_rival 1)
             string heroeLider = (equipo != null && equipo.Count > 0) ? equipo[0] : "desconocido";
@@ -217,10 +218,16 @@ public class DemoLab12 : MonoBehaviour
     }
 
     // El cliente manda SOLO el id: el precio y el descuento los decide el servidor.
-    async Task<ResultadoCompraDto> ComprarAsync(string idHeroe)    {
+    async Task<ResultadoCompraDto> ComprarAsync(string idHeroe)
+    {
         try
         {
-            var args = new Dictionary<string, object> { { "idHeroe", idHeroe } };
+            // LAB14: idOperacion (GUID del cliente) viaja para poder buscar la operación en los logs.
+            var args = new Dictionary<string, object>
+            {
+                { "idHeroe", idHeroe },
+                { "idOperacion", Guid.NewGuid().ToString("N") }
+            };
             return await CloudCodeService.Instance.CallModuleEndpointAsync<ResultadoCompraDto>(
                 "Tienda", "ComprarHeroe", args);
         }

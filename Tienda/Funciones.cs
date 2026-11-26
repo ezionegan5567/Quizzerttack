@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Unity.Services.CloudCode.Apis;
@@ -29,11 +30,41 @@ namespace Tienda
     // deben ser de INSTANCIA (los helpers internos sí pueden ser static).
     public class Funciones
     {
+        // LAB14: logger inyectado por Cloud Code (una línea por operación con Metricas).
+        private readonly ILogger<Funciones> _logger;
+        public Funciones(ILogger<Funciones> logger)
+        {
+            _logger = logger;
+        }
+
         // ================= PASOS 3-5: BUSCAR RIVAL =================
         // Franja inicial ±2, paso 2, tope FranjaMaxima. Cada consulta y
         // cada entrada devuelta se cuentan (se pagan lecturas del índice).
         [CloudCodeFunction("BuscarRival")]
-        public async Task<BuscarRivalResultado> BuscarRival(IExecutionContext context, IGameApiClient api, BuscarRivalRequest req)
+        public async Task<BuscarRivalResultado> BuscarRival(
+            IExecutionContext context, IGameApiClient api, BuscarRivalRequest req, string idOperacion = "-")
+        {
+            var contador = Metricas.Iniciar();
+            BuscarRivalResultado resultado = null;
+            try
+            {
+                resultado = await BuscarRivalInterno(context, api, req, contador);
+                return resultado;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Fallo en BuscarRival: {Traza}", e.StackTrace);
+                throw;
+            }
+            finally
+            {
+                Metricas.Registrar(_logger, "BuscarRival", idOperacion,
+                    resultado == null ? "error" : "ok", contador);
+            }
+        }
+
+        async Task<BuscarRivalResultado> BuscarRivalInterno(
+            IExecutionContext context, IGameApiClient api, BuscarRivalRequest req, ContadorOperacion contador)
         {
             var res = new BuscarRivalResultado();
 
@@ -63,6 +94,7 @@ namespace Tienda
                 var r = await api.CloudSaveData.QueryPublicPlayerDataAsync(
                     context, context.ServiceToken, context.ProjectId, consulta);
                 consultas++;
+                contador.LeerCloudSave(1); // 1 lectura por consulta al índice
 
                 // Parseo tolerantte del resultado: [{id, data:[{key,value}]}]
                 var json = JsonConvert.SerializeObject(r.Data.Results ?? new List<QueryIndexResponseResultsInner>());
@@ -140,7 +172,29 @@ namespace Tienda
 
         [CloudCodeFunction("ResolverCombate")]
         public async Task<ResultadoCombate> ResolverCombate(
-            IExecutionContext context, IGameApiClient api, List<string> equipo, string idRival)
+            IExecutionContext context, IGameApiClient api, List<string> equipo, string idRival, string idOperacion = "-")
+        {
+            var contador = Metricas.Iniciar();
+            ResultadoCombate resultado = null;
+            try
+            {
+                resultado = await ResolverCombateInterno(context, api, equipo, idRival, contador);
+                return resultado;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Fallo en ResolverCombate: {Traza}", e.StackTrace);
+                throw;
+            }
+            finally
+            {
+                Metricas.Registrar(_logger, "ResolverCombate", idOperacion,
+                    resultado == null ? "error" : resultado.Rechazado ? "rechazada" : "ok", contador);
+            }
+        }
+
+        async Task<ResultadoCombate> ResolverCombateInterno(
+            IExecutionContext context, IGameApiClient api, List<string> equipo, string idRival, ContadorOperacion contador)
         {
             // 1. La entrada (paso 2): 1..3 héroes, sin repetidos, sin el héroe coloso.
             if (equipo == null || equipo.Count == 0 || equipo.Count > MaxHeroesPorEquipo)
@@ -154,6 +208,7 @@ namespace Tienda
 
             // 2. Cloud Save PROTEGIDO con el token del servicio (paso 3): dice QUÉ tienes.
             var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            contador.LeerCloudSave(2); // control_estado + estado
             foreach (var id in equipo)
                 if (!estado.Inventario.Heroes.Any(h => h.Id == id))
                     return Rechazo($"{id} no está en tu inventario.", estado.Saldos.Monedas);
@@ -161,6 +216,7 @@ namespace Tienda
             // 3. Remote Config con el token del jugador, las DOS llaves en una petición:
             //    tabla_heroes dice CUÁNTO vale y rivales_npc dice QUIÉN es el rival.
             var tablas = await LeerTablasAsync(context, api);
+            contador.LeerRemoteConfig(1); // 1 llamada a Remote Config (tabla_heroes + rivales_npc)
             var rival = tablas.RivalPorId(idRival);
             if (rival == null || rival.Equipo == null || rival.Equipo.Count == 0)
                 return Rechazo($"No existe el rival <{idRival}>.", estado.Saldos.Monedas);
@@ -173,6 +229,7 @@ namespace Tienda
             //     escala el ataque PROPIO antes de simular; el equipo que se congela en
             //     ultimo_combate ya va escalado, asi RepetirCombate sale identica.
             var liveOps = await LiveOps.LeerAsync(context, api, ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta));
+            contador.LeerRemoteConfig(1); // 1 llamada a Remote Config (evento)
             var ahora = DateTime.UtcNow;
             var eventoActivo = ReglasEvento.Activo(liveOps.Evento, ahora);
             double factor = ReglasEvento.FactorDano(liveOps.Evento, ahora);
@@ -206,11 +263,13 @@ namespace Tienda
 
             // 7. Premio + progreso + pelea en UNA sola escritura (o entran los tres o ninguno).
             await EscribirCombateBatchAsync(context, api, estado);
+            contador.Escribir(1); // lote protegido (premio + progreso + ultimo_combate)
 
             // 8. LAB 11 (paso 3): el combate YA está a salvo; ahora se publica el TOTAL en la
             //    tabla con el token del SERVICIO. Si la tabla falla, el combate no se pierde
             //    (se manda el total y no la diferencia: el próximo combate la corrige).
             int puesto = await Ranking.PublicarTrofeosAsync(api, context, context.PlayerId, estado.Progreso.Trofeos);
+            contador.Escribir(1); // puntaje publicado en la tabla
 
             var resultado = ResultadoDe(pelea, rival, estado.Saldos.Monedas, false);
             resultado.TrofeosCambio = trofeosCambio;
@@ -565,13 +624,36 @@ namespace Tienda
         // El cliente solo manda el id; nunca el precio ni el descuento.
         [CloudCodeFunction("ComprarHeroe")]
         public async Task<ResultadoCompra> ComprarHeroe(
-            IExecutionContext context, IGameApiClient api, string idHeroe)
+            IExecutionContext context, IGameApiClient api, string idHeroe, string idOperacion = "-")
+        {
+            var contador = Metricas.Iniciar();
+            ResultadoCompra resultado = null;
+            try
+            {
+                resultado = await ComprarHeroeInterno(context, api, idHeroe, contador);
+                return resultado;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Fallo en ComprarHeroe: {Traza}", e.StackTrace);
+                throw;
+            }
+            finally
+            {
+                Metricas.Registrar(_logger, "ComprarHeroe", idOperacion,
+                    resultado == null ? "error" : resultado.Exito ? "ok" : "rechazada", contador);
+            }
+        }
+
+        async Task<ResultadoCompra> ComprarHeroeInterno(
+            IExecutionContext context, IGameApiClient api, string idHeroe, ContadorOperacion contador)
         {
             var item = Catalogo.Buscar(idHeroe);
             if (item == null)
                 return new ResultadoCompra { Mensaje = $"<{idHeroe}> no esta en el catalogo de la tienda." };
 
             var estado = await LeerEstadoAsync(context, api, context.PlayerId);
+            contador.LeerCloudSave(2); // control_estado + estado
             if (estado.Inventario.Heroes.Any(h => h.Id == item.Id))
                 return new ResultadoCompra
                 {
@@ -582,6 +664,7 @@ namespace Tienda
 
             bool esNuevo = ReglasEvento.EsNuevo(estado.Perfil.NivelCuenta);
             var cfg = await LiveOps.LeerAsync(context, api, esNuevo);
+            contador.LeerRemoteConfig(1); // 1 llamada a Remote Config (evento/oferta)
             var ahora = DateTime.UtcNow;
             bool activo = ReglasEvento.Activo(cfg.Evento, ahora);
             long precio = ReglasEvento.PrecioConDescuento(cfg.Evento, item.Id, item.Precio, ahora);
@@ -606,6 +689,7 @@ namespace Tienda
                 Ataque = stats.ataque > 0 ? stats.ataque : 20
             });
             await EscribirEstadoBatchAsync(context, api, estado);
+            contador.Escribir(1); // lote protegido (saldo + inventario)
 
             return new ResultadoCompra
             {
@@ -616,6 +700,54 @@ namespace Tienda
                     ? $"{item.Nombre} en oferta: {item.Precio} -> {precio} (-{descuento * 100:0.#} %). Saldo {estado.Saldos.Monedas}."
                     : $"{item.Nombre} comprado por {precio}. Saldo {estado.Saldos.Monedas}."
             };
+        }
+
+        // ================= LAB14: HORA DEL SERVIDOR (verificación del despliegue) =================
+        // La usa el script de despliegue: entra como jugador anónimo NUEVO al entorno destino
+        // y comprueba que responde el entorno correcto con la marca del kit.
+        [CloudCodeFunction("HoraDelServidor")]
+        public object HoraDelServidor(IExecutionContext context, string entornoEsperado = "-")
+        {
+            var contador = Metricas.Iniciar();
+            try
+            {
+                return new
+                {
+                    Entorno = entornoEsperado,
+                    Marca = "dvsc-20261105",
+                    AhoraUtc = DateTime.UtcNow.ToString("o"),
+                    Mensaje = "ok"
+                };
+            }
+            finally
+            {
+                Metricas.Registrar(_logger, "HoraDelServidor", "-", "ok", contador);
+            }
+        }
+
+        // ================= LAB14: ERROR DELIBERADO (evidencia de logs) =================
+        // Se invoca SOLO en development para demostrar que el error queda en los logs
+        // del dashboard con tipo + mensaje + traza (archivo y línea), y que el cliente
+        // recibe un mensaje corto (Cloud Code devuelve 422 sin filtrar la traza).
+        [CloudCodeFunction("ForzarErrorPrueba")]
+        public object ForzarErrorPrueba(IExecutionContext context, string motivo = "prueba")
+        {
+            var contador = Metricas.Iniciar();
+            try
+            {
+                var datos = new Dictionary<string, string> { { "entorno", "dev" } };
+                // clave inexistente a propósito → KeyNotFoundException
+                return datos["entorno_real"];
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Fallo en ForzarErrorPrueba: {Traza}", e.StackTrace);
+                throw;
+            }
+            finally
+            {
+                Metricas.Registrar(_logger, "ForzarErrorPrueba", "-", "error", contador);
+            }
         }
 
         // ================= helpers =================

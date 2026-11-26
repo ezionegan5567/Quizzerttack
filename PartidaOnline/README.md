@@ -2,11 +2,7 @@
 
 Módulo Cloud Code **`QuizzerMatch`** + cliente Unity para jugar la partida de Quizzerttack (moneda → colocar → habilidades con quiz → pelea → nueva ronda) **online y por turnos**, con el servidor como única autoridad y **push messages** de Cloud Code para avisar al rival.
 
-<<<<<<< HEAD
-> **Estado: importado en Unity, compila y desplegado en UGS (2026-11-05). Falta probar el push en dos Editores.** Verificado: el cliente compila en Unity con `UGS_ON` sin errores ni avisos, el módulo se despliega y expone las 5 funciones, y las 61 pruebas pasan. Sigue sin probarse con dos jugadores conectados (actividades 5 a 13 de [`docs/PRUEBAS.md`](../docs/PRUEBAS.md)). Ver *Qué falta*.
-=======
-> **Estado: desarrollado y probado en local, NO desplegado ni probado todavía contra UGS real.** Lo que sí está verificado: el módulo compila contra los paquetes reales de Cloud Code y las 72 pruebas pasan (reglas, replay, servicio, idempotencia, write lock, plazos, información oculta, contrato cliente/servidor y partidas completas simuladas). Lo que falta verificar con Unity y UGS: despliegue, push y panel. Ver *Qué falta*.
->>>>>>> ed51f5a8779cf64b3d443bd28204804378e0b0cb
+> **Estado actual: cliente y módulo PvP por turnos preparados en el proyecto.** La escena de batalla tiene un panel F7 y un puente que muestra la partida del servidor. El motor del servidor ya contempla las habilidades y estados definidos en `DatosFacciones.cs`. Hace falta volver a desplegar `QuizzerMatch` (protocolo 2) y jugar con dos sesiones para confirmar el servicio de Unity, el push y el recorrido completo. No se afirma que el módulo remoto esté actualizado.
 >
 > **Sigue el patrón de TTTXO** (arquitectura de referencia del curso): `CreateMatch` / `JoinMatch` / `PlayMove` / `GetMatchState`, estado como lista de jugadas que se reproduce, push `{type, matchId}` con sondeo de respaldo y `GameProtocol.Version`. Una diferencia importante: el Core se comparte entre el módulo y las pruebas, **pero no con el juego de Unity** (ver *Diferencias con TTTXO*).
 
@@ -87,9 +83,7 @@ Argumentos por **nombre**: los de `ModuloPartida.cs` y los de `PartidaOnlineServ
 
 Orden de una ronda (GDD y `GestorTurnos`): colocar (inicial) → colocar (segundo) → habilidades (inicial) → habilidades (segundo) → pelea automática → ronda siguiente. Se salta el turno del jugador que no puede hacer nada. Fin: pierde quien se queda sin peleadores y sin cartas; empate si ambos; límite de 30 rondas.
 
-**Efectos soportados:** `Dano`, `DanoTodos`, `DanoDos`, `Curar`, `CurarZona`, `BuffAtk(Zona)`, `BuffDef(Zona)`, `Intimidar`. Son **58 de las 80 habilidades**: las que tienen un efecto *principal* soportado. Las otras 22 (provocar, velocidad, maldición, invisibilidad, ceguera, parálisis, reflejo…) existen en el catálogo pero **se rechazan con un mensaje claro** al elegirlas (`aún no está implementada en el servidor`). **Ojo con los efectos secundarios:** una habilidad soportada puede traer un efecto secundario que aún no existe (p. ej. el sangrado de *Cuchillo letal* o el veneno de *Cuchillo veneno*); en ese caso se aplica el daño y el efecto secundario **se ignora sin avisar**. Para añadir un efecto: implementarlo en `Reglas.AplicarEfecto`, añadirlo a `EfectosSoportados` y escribir su prueba.
-
-Tampoco están todavía: esquiva por velocidad, robo de vida (Vampiro), pasivas, el **fallo crítico** del GDD ni la animación (la pelea se resuelve entera y se devuelve el `RegistroPelea`).
+**Efectos soportados:** todos los efectos activos del catálogo: daño a uno/dos/todos, curación, estados negativos y positivos, veneno/sangrado/quemadura/maldición, esquiva y puntería, control, invisibilidad, provocación, inmunidad, bloquear, proteger, purificar, reflejo, marca de pólvora con fuego, robo de vida y las dos pasivas de contadores. La pelea sigue resolviéndose en el servidor y llega como vida actualizada y registro textual; todavía no tiene animaciones de combate.
 
 **Decisiones de diseño que el equipo debe confirmar** (todas en `Config`, en `Reglas.cs`):
 
@@ -112,7 +106,7 @@ dotnet test PartidaOnline/TestProject
 
 Necesita el SDK de .NET (las pruebas corren en net8.0; el módulo compila a net6.0 como `Tienda` y `TurnMatch`). No necesita Unity ni UGS.
 
-## Cómo desplegar (hecho el 2026-11-05)
+## Cómo desplegar
 
 Mismo procedimiento que `Tienda` (ver `Notas/Lab10-Progresion.md`: usar la **`.sln`** y no el `.csproj`; sin `static` en las funciones):
 
@@ -153,14 +147,8 @@ Ya sigue el patrón: el cliente envía intenciones, Cloud Code valida con un Cor
 
 ## Qué falta (honestamente)
 
-<<<<<<< HEAD
-1. **Verificar con dos jugadores conectados** (hecho el 2026-11-05: despliegue y compilación del cliente en Unity). Verificado: que el módulo se despliega, que `GetProtocolVersion` (sin `IExecutionContext`) se expone sin parámetros y que los 10 parámetros primitivos de `PlayMove` se despachan con su nombre, que `IPushClient` se inyecta sin error de despliegue y que el cliente compila en Unity. Falta: que el **push llegue de verdad** a otro jugador y con qué latencia (actividad 8 de `docs/PRUEBAS.md`), el tipo exacto de los eventos `ConnectionStateChanged`/`Error` del SDK, que el tamaño del registro de una partida larga quepa en un item de Cloud Save, y las reglas jugando (actividades 5 a 7 y 10 a 13).
-2. **Sustituir el panel IMGUI por la escena real**: hacer que `GestorTurnos`, `CartaSeleccion` y `Peleador` *pinten* la `VistaPartidaDto` en vez de decidir fases y peleas en local. Es el trabajo de integración y conviene que lo hagan ustedes.
-=======
-1. **Verificar contra UGS real**: despliegue, que `IPushClient` se inyecte como parámetro, que el push llegue, que `GetProtocolVersion` (sin `IExecutionContext`) y los 12 parámetros primitivos de `PlayMove` se despachen bien, el tipo exacto de los eventos `ConnectionStateChanged`/`Error` del SDK (el cliente asume lo de la documentación), que el tamaño del registro de una partida larga quepa en un item de Cloud Save, y que el cliente compile en Unity (aquí sólo se comprobó contra stubs).
-2. **Completar el modo online de la escena real** (`EscenaOnline.cs`): ya coloca héroes, actualiza vidas y muestra el quiz del servidor, pero **no se ha probado en Unity**, solo funciona con F1 contra F2, no anima la pelea y no dibuja los efectos de estado. Ver `docs/TAREAS.md`, Tarea 3, y `docs/PRUEBAS.md`, actividades 14 y 15.
->>>>>>> ed51f5a8779cf64b3d443bd28204804378e0b0cb
-3. **Implementar los efectos que faltan** (22 habilidades) y decidir los valores de la tabla de arriba.
-4. **Unificar backends**: hoy conviven Firebase, los scripts `T9*`, el módulo `Tienda` y este. Cuando la partida online funcione, el fin de partida puede llamar a la progresión del Lab 10 (con `IdOperacion` = código + jugador) para premiar una sola vez.
-5. **Emparejamiento**: hoy es por código. Se puede reutilizar `BuscarRival` por nivel para invitar.
-6. **Limpieza de partidas**: nada borra las partidas terminadas de Cloud Save.
+1. **Desplegar y verificar en UGS** `QuizzerMatch` con protocolo 2; el último intento del CLI de publicación no quedó autenticado.
+2. **Probar con dos sesiones**: creación, unión, colocación, quiz, habilidades de cada facción, resolución de efectos, reconexión y push. El puente de escena está preparado, pero no hay evidencia de una partida real completa.
+3. **Animación de combate**: la simulación online conserva estados y vida en el servidor, pero el cliente muestra el resultado como texto.
+4. **Emparejamiento**: las salas usan un código; todavía no hay Matchmaker.
+5. **Limpieza de partidas**: no hay una tarea que borre partidas terminadas de Cloud Save.

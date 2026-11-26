@@ -46,7 +46,8 @@ public class ReproductorCombate : MonoBehaviour
         var args = new Dictionary<string, object>
         {
             { "equipo", equipo },
-            { "idRival", idRival }
+            { "idRival", idRival },
+            { "idOperacion", System.Guid.NewGuid().ToString("N") } // LAB14: trazabilidad por operación
         };
 
         // LAB13: combate_iniciado + primer_combate_iniciado (heroe = carta líder, nivel_rival del servidor/npc)

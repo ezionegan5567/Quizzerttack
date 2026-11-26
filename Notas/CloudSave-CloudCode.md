@@ -124,3 +124,17 @@ Qué se reutiliza tal cual del lab (ya probado):
 4. **Fricción de compra real detectada**: catálogo 1200 vs saldo 680 post-compra → un jugador nuevo NO puede comprar otro héroe sin grind (+400 oro por victoria NPC). La métrica a vigilar es `compra_fallida_sin_fondos` con faltante real (tras corregir el falso `faltante=0` del caso "ya lo tenés": el código ya solo registra el evento cuando `precio > saldo`).
 5. **Límites declarados**: muestra = 1 instalación, ExternalUserId por sesión (no por instalación permanente), retención local, y un evento inválido histórico (faltante=0) anotado en la interpretación como limitación de la primera medición.
 
+
+## Lab14 - CI/CD y operaciones (2026-11-23)
+
+**Objetivo**: un solo comando publica configuracion + modulo, con respaldo, verificacion y reversion.
+
+- **`recursos/scripts/desplegar.ps1`** (5 fases): pruebas (72, `dotnet test`) -> respaldo `.ccmzip` fechado -> configuracion (4 `.rc` + `.lb` + `.ac`, SIEMPRE antes del modulo) -> modulo (`dotnet build` + `ugs deploy Tienda.sln -s cloud-code-modules`) -> espera 45 s + jugador anonimo nuevo.
+- **Guardas**: `-Ambiente` solo `development|production` (`ValidateSet`); production exige `-Confirmar`; `-Simular` usa `--dry-run` y no crea jugadores; credenciales SOLO por `UGS_SERVICE_ACCOUNT_KEY_ID` / `UGS_SERVICE_ACCOUNT_SECRET_KEY`; el proyecto se lee de `ProjectSettings.asset` (nunca hardcodeado).
+- **Verificacion** (`verificar.ps1`): auth anonima (headers `ProjectId` + `UnityEnvironment`) -> REST `POST /v1/projects/{pid}/modules/Tienda/HoraDelServidor` -> comprueba entorno + marca `dvsc-20261105`. La respuesta del modulo viene como `{ "output": ... }`.
+- **Log estructurado** (`Tienda/Metricas.cs`): una linea por operacion, `operacion="..." id="<GUID del cliente>" resultado="ok|rechazada|error" duracionMs=... lecturas=... escrituras=...`, sin tokens ni datos personales. `ILogger<Funciones>` inyectado por Cloud Code; el `catch` registra `{Traza}` con `exception.StackTrace` porque el dashboard NO guarda la traza de una excepcion no capturada.
+- **Trampas reales encontradas**: (1) el CLI sin `-p` usa el proyecto del `ProjectSettings` (5906c36b), no el `UGS_PROJECT_ID` de la sesion; (2) el `.rc` necesita `types` con `JSON` o el deploy falla; (3) la service account necesita `Remote Config Admin` (da 403) y `Cloud Code Editor`; (4) el binario estaba como `ugs.exe.exe`.
+- **Reversion**: `ugs cc modules import` del `.ccmzip` + 35 s + verificar. NO revierte datos de jugadores, politica `.ac` ni configuracion remota: eso es git.
+- **Costos** (`planillas/S14-tabla-costos.md`): 1 000 DAU ~ US$ 1,06/mes; 5 000 DAU ~ US$ 11,27/mes, con el **computo** como 81 % del costo. Optimizaciones: fusionar `control_estado`+`estado` (-43 % lecturas) y agrupar la sesion en 3 invocaciones (-57 % llamadas, -30 % computo).
+
+**Entregable**: `AlexanderVillena_Lab14.zip` (proyecto + `Tienda.Pruebas` + `recursos/` con manifiesto, reversion, respaldos y logs + `planillas/S14-tabla-costos.md` + capturas).
