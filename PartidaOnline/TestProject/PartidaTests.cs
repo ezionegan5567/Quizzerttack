@@ -663,7 +663,8 @@ public class PeleaTests
         Mesa.Pasar(s);
 
         Assert.That(s.Jugadores[Escenario.A].Campo.Single().Vida, Is.EqualTo(100 - 21));
-        Assert.That(s.RegistroPelea, Has.Some.Contains("ataque -25 %"));
+        // El registro usa el nombre del efecto desde que el motor maneja todos los estados (protocolo 2).
+        Assert.That(s.RegistroPelea, Has.Some.Contains("BuffAtk -25%"));
     }
 
     [Test]

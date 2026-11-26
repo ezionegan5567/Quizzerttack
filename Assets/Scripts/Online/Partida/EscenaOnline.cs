@@ -167,7 +167,11 @@ namespace QuizzerAttack.Partida
             try
             {
                 VistaPartidaDto v = await llamada();
-                if (v != null && v.Resultado != ResultadoPartida.Aplicado && v.Resultado != ResultadoPartida.Ok)
+                // "obsoleto" = tu clic llegó cuando el estado ya había avanzado (p. ej. justo entró un push). No es un
+                // error para el jugador: la respuesta trae la vista al día y la escena se repinta sola (como en Hero Duel).
+                if (v != null && v.Resultado == ResultadoPartida.Obsoleto)
+                    Debug.Log("[EscenaOnline] jugada obsoleta, resincronizado: " + v.Mensaje);
+                else if (v != null && v.Resultado != ResultadoPartida.Aplicado && v.Resultado != ResultadoPartida.Ok)
                     Decir("[" + v.Resultado + "] " + v.Mensaje);
                 else if (v != null && v.Mensaje.Length > 0)
                     Decir(v.Mensaje);

@@ -161,6 +161,42 @@ Este PR añade unas líneas a `Peleador.cs` y `CartaSeleccion.cs`. Todas empieza
 | **Esperado** | Exactamente lo mismo que antes de este PR. |
 | **Si falla, reporten** | Qué cambió respecto a antes, y si recuerdan en qué fase. Esto es **prioritario**: es el único riesgo real del PR para su juego. |
 
+### 16. Desplegar el protocolo 3 y probar "Buscar rival" sin Unity (5 minutos)
+
+Este PR añade `QuickMatch`, `CancelQuickMatch` y `GetActiveMatch` y sube `GameProtocol.Version` a **3**. **El módulo y el cliente tienen que ir juntos:** un cliente de protocolo 2 contra un módulo de protocolo 3 (o al revés) se rechaza en el handshake.
+
+| | |
+|---|---|
+| **Pasos** | 1) `dotnet test PartidaOnline/TestProject` (esperado: `Superado: 89, Omitido: 1`; la omitida es la de "habilidad no implementada", que ya no queda ninguna). 2) Desplegar `QuizzerMatch` en **development** como en la actividad 4. 3) `.\recursos\scripts\probar_emparejamiento.ps1` (va contra `development` por defecto y crea 3 jugadores anónimos). |
+| **Esperado** | El módulo expone **8 funciones** (las 5 de antes más `QuickMatch`, `CancelQuickMatch` y `GetActiveMatch`). El script termina con `RESULTADO: buscar rival, reanudar y cancelar FUNCIONAN` y todas las líneas en `OK`. |
+| **Si falla, reporten** | La salida **completa** del script (no imprime tokens). Si falla en el handshake, es que el módulo desplegado no es el de este PR. Si falla la comprobación "A no puede crear otra mientras juega", copien el texto del error: el script espera que el mensaje de Cloud Code contenga `partida en curso`, y nadie ha comprobado todavía cómo llega ese texto por REST. |
+
+### 17. Buscar rival con dos jugadores en Unity
+
+Necesita **dos Editores** (o un Editor y un build Standalone), como la 8.
+
+| | |
+|---|---|
+| **Pasos** | 1) En los dos: menú principal → **Jugar** → iniciar sesión con cuentas distintas. 2) Editor A: facción F1 → **Buscar rival**. 3) Editor B: facción F2 → **Buscar rival**. |
+| **Esperado** | A ve `Buscando rival… Tu sala es XXXXXX` y `Esperando a que se una el otro jugador`. Al buscar B, **los dos entran solos al combate** (sin escribir ningún código): B con `¡Rival encontrado!` y A por el push, en 1 o 2 s (como mucho ~10 s si el push falla y entra el sondeo). |
+| **Si falla, reporten** | Qué mensaje vio cada uno, si B terminó en otra sala (código distinto) y la consola de los dos (`[Partida][push]`). |
+
+### 18. Cancelar la búsqueda
+
+| | |
+|---|---|
+| **Pasos** | Un solo Editor: **Buscar rival** y, mientras espera, **Cancelar búsqueda**. Después, desde el otro Editor, **Buscar rival**. |
+| **Esperado** | Tras cancelar: `Búsqueda cancelada.` y vuelve la pantalla de buscar o crear. El otro jugador **no** cae en la sala cancelada: queda esperando en una sala nueva. |
+| **Si falla, reporten** | Si el segundo jugador entró en la sala cancelada, o si la sala siguió apareciendo como propia. |
+
+### 19. Reanudar sin el código y "una partida a la vez"
+
+| | |
+|---|---|
+| **Pasos** | 1) Con una partida en curso (actividad 17), **paren el Play** en el Editor A. 2) Vuelvan a darle Play → **Jugar** → iniciar sesión con la **misma cuenta**. 3) Con la partida en curso, prueben **Crear partida** o **Unirse** a otro código. |
+| **Esperado** | 2) Sin escribir nada: `Tienes una partida en curso: reanudada.` y entra al combate tal como estaba. 3) `ERROR: Ya tienes una partida en curso (código XXXXXX)...`. Cuando la partida termine (o la abandonen), ya se puede empezar otra. |
+| **Si falla, reporten** | El mensaje que aparece al volver a entrar. Ojo: con **otra** cuenta no debe reanudarse nada (es otro jugador). |
+
 ## Qué esperamos aprender de esto
 
 1. Si el cliente y el módulo se **entienden** en UGS real (actividades 2, 4, 5).
@@ -168,3 +204,4 @@ Este PR añade unas líneas a `Peleador.cs` y `CartaSeleccion.cs`. Todas empieza
 3. Si las **reglas** se sienten bien jugando (6 y 7): qué es confuso, qué falta.
 4. Cualquier cosa que el servidor **acepte y no debería** (12 y 13).
 5. Si la **escena real** se deja dibujar con la vista del servidor, y si el juego local sigue intacto (14 y 15).
+6. Si **buscar rival**, cancelar y reanudar funcionan con el módulo desplegado y con dos jugadores reales (16 a 19).

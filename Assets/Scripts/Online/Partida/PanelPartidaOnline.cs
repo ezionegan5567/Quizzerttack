@@ -129,6 +129,7 @@ namespace QuizzerAttack.Partida
                 await servicio.SuscribirPushAsync();
                 sesionIniciada = true;
                 mensaje = "Sesión iniciada como " + UgsDefensa.MiPlayerId;
+                await ReanudarSiHay();
             }
             catch (System.Exception e) { mensaje = "ERROR al iniciar sesión: " + e.Message; }
             ocupado = false;
@@ -153,9 +154,20 @@ namespace QuizzerAttack.Partida
                 await servicio.SuscribirPushAsync();
                 sesionIniciada = true;
                 mensaje = "Sesión online lista como " + AuthenticationService.Instance.PlayerId;
+                // Reconexión: si el juego se cerró a mitad de partida, el servidor la recuerda (GetActiveMatch).
+                await ReanudarSiHay();
             }
             catch (System.Exception e) { mensaje = "ERROR al preparar PvP: " + e.Message; }
             finally { ocupado = false; }
+        }
+
+        /// <summary>Pregunta al servidor si hay una partida en curso y, si la hay, la retoma (y entra al combate si ya empezó).</summary>
+        async System.Threading.Tasks.Task ReanudarSiHay()
+        {
+            var vista = await servicio.ReanudarActivaAsync();
+            if (vista == null || vista.Codigo.Length == 0 || vista.Estado == EstadoPartidaValores.Terminada) return;
+            mensaje = vista.Mensaje;
+            IntentarEntrarAlCombate();
         }
 
         async System.Threading.Tasks.Task Ejecutar(System.Threading.Tasks.Task<VistaPartidaDto> llamada)
@@ -235,6 +247,12 @@ namespace QuizzerAttack.Partida
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("facción (F1-F4/Random)", GUILayout.Width(150));
                 faccion = GUILayout.TextField(faccion, GUILayout.Width(70));
+                // Lo normal: el servidor te empareja con quien esté esperando (o te deja esperando a ti).
+                if (GUILayout.Button("Buscar rival")) _ = Ejecutar(servicio.BuscarRivalAsync(faccion));
+                GUILayout.EndHorizontal();
+
+                GUILayout.Label("…o juega con un amigo con un código de sala:");
+                GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Crear partida")) _ = Ejecutar(servicio.CrearAsync(faccion));
                 GUILayout.EndHorizontal();
 
@@ -264,6 +282,8 @@ namespace QuizzerAttack.Partida
                 if (servicio.Ultima != null && servicio.Ultima.Estado == EstadoPartidaValores.EsperandoRival)
                 {
                     GUILayout.Label("Esperando a que se una el otro jugador para abrir el campo de batalla.");
+                    if (GUILayout.Button("Cancelar búsqueda", GUILayout.Width(140)))
+                        _ = Ejecutar(servicio.CancelarBusquedaAsync());
                 }
                 else if (EscenaOnline.Instancia == null)
                 {

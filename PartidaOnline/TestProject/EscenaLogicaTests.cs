@@ -68,21 +68,25 @@ public class EscenaLogicaTests
     }
 
     [Test]
-    public void Lados_CadaJugadorUsaLaManoDeSuFaccion_ConUnMensajeSiNoSePuede()
+    public void Lados_MiManoAlLado1YLaDelRivalAl2_CualquierFaccion_ConUnMensajeSiNoSePuede()
     {
-        Assert.That(Logica.ResolverLados("F1", "F2", Cartas(), out var mio, out var rival, out var error), Is.True);
+        // Desde el protocolo 2, MazoFaccion.PrepararManosOnline reasigna las manos antes de activar el modo online:
+        // el lado 1 recibe las cartas de MI facción y el 2 las del rival, así que vale cualquier facción, incluso la misma.
+        static List<Logica.CartaEscena> Preparadas(string mia, string delRival) =>
+            Enumerable.Range(0, 5).Select(_ => new Logica.CartaEscena { Faccion = mia, JugadorDueno = 1 })
+                .Concat(Enumerable.Range(0, 5).Select(_ => new Logica.CartaEscena { Faccion = delRival, JugadorDueno = 2 })).ToList();
+
+        Assert.That(Logica.ResolverLados("F1", "F2", Preparadas("F1", "F2"), out var mio, out var rival, out var error), Is.True);
         Assert.That((mio, rival, error), Is.EqualTo((1, 2, "")));
 
-        Assert.That(Logica.ResolverLados("F2", "F1", Cartas(), out mio, out rival, out _), Is.True);
-        Assert.That((mio, rival), Is.EqualTo((2, 1)));
+        Assert.That(Logica.ResolverLados("F3", "F3", Preparadas("F3", "F3"), out mio, out rival, out _), Is.True, "misma facción");
+        Assert.That((mio, rival), Is.EqualTo((1, 2)));
 
-        Assert.That(Logica.ResolverLados("F1", "F1", Cartas(), out _, out _, out error), Is.False);
-        Assert.That(error, Does.Contain("misma facción"));
+        // Escena sin preparar (la de siempre: F1 a la izquierda y F2 a la derecha) y yo con F2: no cuadra.
+        Assert.That(Logica.ResolverLados("F2", "F1", Cartas(), out _, out _, out error), Is.False);
+        Assert.That(error, Does.Contain("cinco cartas"));
 
-        Assert.That(Logica.ResolverLados("F3", "F1", Cartas(), out _, out _, out error), Is.False);
-        Assert.That(error, Does.Contain("F1 y F2"));
-
-        Assert.That(Logica.ResolverLados("F1", "", Cartas(), out _, out _, out _), Is.False, "aún no se ha unido el rival");
+        Assert.That(Logica.ResolverLados("F1", "", Preparadas("F1", "F2"), out _, out _, out _), Is.False, "aún no se ha unido el rival");
     }
 
     // ---------------------------------------------------------------- qué cambiar en el campo

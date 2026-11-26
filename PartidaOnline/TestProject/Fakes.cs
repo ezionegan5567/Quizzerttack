@@ -45,6 +45,43 @@ public class RepositorioMemoria : IRepositorioPartida
     public int Cantidad => _datos.Count;
 }
 
+/// <summary>La cola y los punteros de "Buscar rival" en memoria, con el mismo write lock simulado que las partidas.</summary>
+public class AlmacenSalasMemoria : IAlmacenSalas
+{
+    private JObject? _cola;
+    private int _versionCola;
+    private readonly Dictionary<string, string> _activas = new();
+
+    /// <summary>Hace que la próxima escritura de la cola pierda la carrera (otra búsqueda escribió antes).</summary>
+    public int FallosDeColaPendientes { get; set; }
+    public int EscriturasDeCola { get; private set; }
+
+    public Task<Documento<ColaEmparejamiento>?> CargarColaAsync() =>
+        Task.FromResult(_cola == null ? null : new Documento<ColaEmparejamiento>(_cola.ToObject<ColaEmparejamiento>()!, _versionCola.ToString()));
+
+    public Task<bool> GuardarColaAsync(ColaEmparejamiento cola, string? writeLock)
+    {
+        if (FallosDeColaPendientes > 0) { FallosDeColaPendientes--; _versionCola++; return Task.FromResult(false); }
+        if (_cola != null && writeLock != _versionCola.ToString()) return Task.FromResult(false);
+        _cola = JObject.FromObject(cola);
+        _versionCola++;
+        EscriturasDeCola++;
+        return Task.FromResult(true);
+    }
+
+    public Task<string> PartidaActivaDeAsync(string jugadorId) =>
+        Task.FromResult(_activas.TryGetValue(jugadorId, out var m) ? m : "");
+
+    public Task GuardarPartidaActivaAsync(string jugadorId, string matchId)
+    {
+        _activas[jugadorId] = matchId;
+        return Task.CompletedTask;
+    }
+
+    public ColaEmparejamiento Cola => _cola?.ToObject<ColaEmparejamiento>() ?? new ColaEmparejamiento();
+    public string ActivaDe(string jugadorId) => _activas.TryGetValue(jugadorId, out var m) ? m : "";
+}
+
 public record Aviso(string JugadorId, string MatchId);
 
 public class NotificadorEspia : INotificador
@@ -69,6 +106,7 @@ public class Escenario
 
     public RepositorioMemoria Repo { get; } = new();
     public NotificadorEspia Avisos { get; } = new();
+    public AlmacenSalasMemoria Salas { get; } = new();
     public ServicioPartida Servicio { get; }
     public DateTime Ahora { get; set; } = new(2026, 10, 27, 12, 0, 0, DateTimeKind.Utc);
     public string Codigo { get; private set; } = "";
@@ -76,7 +114,8 @@ public class Escenario
 
     public Escenario(int semilla = 42, string faccionA = "F1", string faccionB = "F2")
     {
-        Servicio = new ServicioPartida(Repo, Avisos, () => semilla);
+        // Con almacén de salas, como en producción: así toda la suite pasa también por "una partida a la vez".
+        Servicio = new ServicioPartida(Repo, Avisos, () => semilla, Salas);
         FaccionA = faccionA;
         FaccionB = faccionB;
     }

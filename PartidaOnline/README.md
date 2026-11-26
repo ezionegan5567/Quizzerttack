@@ -44,7 +44,7 @@ PartidaOnline/
 │   ├── RepositorioCloudSave.cs   el registro en Cloud Save (custom data privado)
 │   ├── NotificadorPush.cs        push {type, matchId} al rival con IPushClient
 │   └── ModuleSetup.cs
-├── TestProject/                  72 pruebas NUnit (repositorio y push falsos en memoria; compila también el DTO y la lógica de escena del cliente)
+├── TestProject/                  90 pruebas NUnit (repositorio, cola y push falsos en memoria; compila también el DTO y la lógica de escena del cliente)
 └── Tools/generar_catalogo.py     regenera los archivos *.Generado.cs (en Core/) desde el código de Unity
 Assets/Scripts/Online/Partida/    cliente Unity (todo bajo #if UGS_ON salvo los DTO)
 ├── PartidaDto.cs                 espejo de VistaPartida y de GameProtocol (contrato; lo comprueba ContratoTests)
@@ -70,6 +70,9 @@ Los nombres son los del patrón TTTXO. Las fases de la partida no son funciones 
 | `JoinMatch` | `matchId`, `requestId`, `faccion` | Existe, espera rival, no es la tuya. El servidor lanza la **moneda** y abre la ronda 1. |
 | `GetMatchState` | `matchId` | Participas. Aplica el plazo vencido (y lo anota) antes de responder. Sirve para reconectar. |
 | `PlayMove` | `matchId`, `requestId`, `turnoEsperado`, `tipo`, `heroeId`, `casilla`, `peleadorId`, `indiceHabilidad`, `preguntaId`, `opcion` | Participas, **idempotencia**, tipo permitido, plazo, turno esperado y las reglas del `tipo`. Los parámetros que el `tipo` no usa se ignoran. |
+| `QuickMatch` | `requestId`, `faccion` | **Buscar rival.** Si ya tienes una partida en curso, te la devuelve (reanudar). Si no, te une a quien más tiempo lleva esperando; si no hay nadie, crea tu sala y te anota en la cola. Ver *Buscar rival y reanudar*. |
+| `CancelQuickMatch` | — | Te saca de la cola y cancela tu sala si nadie había entrado. No toca partidas ya empezadas. |
+| `GetActiveMatch` | — | **Reanudar sin el código:** tu partida en curso (con su vista), o una vista con `Codigo` vacío si no tienes ninguna. |
 
 Tipos de `PlayMove` (`TipoJugada`): `colocar` (tu turno, fase *colocar*, héroe en tu mano, máx. 3 en el campo, casilla libre, **uno por turno**), `elegir_habilidad` (peleador tuyo y vivo, habilidad soportada y no usada en el ciclo; devuelve la **pregunta** sin respuesta), `responder_quiz` (es tu pregunta pendiente, opción en rango, **a tiempo**; acierto +25 %, fallo o tarde −25 %), `pasar` (tu turno y sin pregunta pendiente) y `abandonar` (no exige turno; el rival gana). `plazo` y `unirse` existen en el registro pero **las escribe el servidor**: un cliente que las envíe por `PlayMove` recibe `invalido` (hay prueba).
 
@@ -140,15 +143,29 @@ Ya sigue el patrón: el cliente envía intenciones, Cloud Code valida con un Cor
 1. **El Core no lo comparte el juego de Unity.** En TTTXO el cliente (modo local, IA, vista previa) y el servidor ejecutan el mismo código. Aquí el Core lo comparten el módulo y las pruebas, pero `Peleador`, `GestorTurnos` y `CartaSeleccion` siguen con sus propias reglas mezcladas con `MonoBehaviour`. Compartirlo exige refactorizar el juego (y llevar el Core a un sitio que Unity compile: C# 9, sin `record` ni espacios de nombres de archivo). Es el trabajo de los alumnos y la prueba de que entienden las reglas.
 2. **Dos reglas de servidor ausentes:** abandono por inactividad en `GetMatchState` y el barrido programado de partidas olvidadas (`SweepAbandonedMatches`); tampoco caducan las salas que esperan rival.
 3. **Sin `GetGameConfig`:** los valores (`Config`) están en el código y no llegan por Remote Config.
-4. **Sin Matchmaker:** el emparejamiento es por código de sala, no por ticket.
+4. **Emparejamiento con cola propia, no con el Matchmaker de UGS:** `QuickMatch` usa una cola en Cloud Save (el patrón de la rama UGS de Hero Duel), suficiente para una clase o un evento pequeño. TTTXO usa el Matchmaker (tickets + `CreateMatch` idempotente por `handoffId`); es el siguiente escalón si un día hay muchos jugadores a la vez.
 5. **No engancha los premios ni el ranking** al fin de partida (ver *Qué falta*).
 
 **Cuidado con el replay:** las reglas forman parte del contrato. Si cambias las reglas o el catálogo, **sube `GameProtocol.Version` en las dos mitades**: una partida guardada con otra versión se rechaza con un mensaje claro (si no, el replay daría otro resultado). Una partida cuyo registro ya no se puede reproducir lanza una excepción en lugar de inventarse el estado.
 
+## Buscar rival y reanudar (protocolo 3)
+
+Patrón tomado de la rama UGS de Hero Duel (TCGMaster), adaptado:
+
+- **La cola** es un único documento de Cloud Save (custom data **privado**, entidad `__cola_emparejamiento__`). Cada entrada es un jugador con su sala ya creada y esperando. `QuickMatch` reclama al que más tiempo lleva esperando; si su sala ya no admite (la canceló, se la llevó otro), lo descarta y prueba el siguiente. Quien lleva más de `Emparejamiento.SegundosEnCola` (120 s) **sin consultar** sale de la cola: cerró el juego. Mientras el juego está abierto, el sondeo de respaldo (cada ~10 s) mantiene viva su entrada, así que se puede esperar todo lo que haga falta. Sólo las salas abiertas por *Buscar rival* entran en la cola: una sala creada por código es para quien tenga el código y nunca se le ofrece a un desconocido.
+- **Write lock en la cola.** Si dos búsquedas llegan a la vez, una pierde la escritura y repite: nunca reclaman al mismo rival. (Hero Duel no lo tenía y aceptaba esa carrera.)
+- **Partida activa por jugador** (entidad `__partidas_activas__`, clave = playerId, también privada): la usan `GetActiveMatch` para **reanudar sin escribir el código** y la regla de **una partida a la vez**. Con una partida en curso, `CreateMatch` y `JoinMatch` se rechazan con el código de la que tienes, y `QuickMatch` te la devuelve. Al terminar la partida, el puntero se limpia solo la próxima vez que se consulta.
+- **Si vuelves a buscar con tu sala vacía y otro jugador también espera en la suya**, se cancela tu sala y te unes a la suya, en vez de quedarse los dos esperando en salas distintas.
+- **Las reglas de la cola** (podar, elegir candidato, anotar) están en `Core/Emparejamiento.cs`, en C# puro y con pruebas (`TestProject/EmparejamientoTests.cs`).
+- **En el cliente**, la sala (panel) tiene *Buscar rival*, *Cancelar búsqueda* mientras esperas, y al iniciar sesión pregunta por la partida activa: si la hay, la retoma y entra al combate.
+- **Para probarlo sin dos Editores:** `recursos/scripts/probar_emparejamiento.ps1` (contra `development` por defecto).
+
+**Por qué subió `GameProtocol.Version` a 3:** hay tres funciones nuevas y el cliente las llama. Un cliente de protocolo 2 contra un módulo de protocolo 3 (o al revés) se rechaza en el handshake en vez de fallar a medias. **Hay que redesplegar el módulo y recompilar el cliente a la vez.**
+
 ## Qué falta (honestamente)
 
-1. **Desplegar y verificar en UGS** `QuizzerMatch` con protocolo 2; el último intento del CLI de publicación no quedó autenticado.
+1. **Desplegar y verificar en UGS** `QuizzerMatch` con **protocolo 3** (el 2 tampoco llegó a desplegarse: el último intento del CLI no quedó autenticado). Después, correr `recursos/scripts/probar_emparejamiento.ps1`.
 2. **Probar con dos sesiones**: creación, unión, colocación, quiz, habilidades de cada facción, resolución de efectos, reconexión y push. El puente de escena está preparado, pero no hay evidencia de una partida real completa.
 3. **Animación de combate**: la simulación online conserva estados y vida en el servidor, pero el cliente muestra el resultado como texto.
-4. **Emparejamiento**: las salas usan un código; todavía no hay Matchmaker.
+4. **Emparejamiento**: hay *Buscar rival* con cola propia (protocolo 3), sin rating ni bandas de nivel. Hero Duel empareja por rating con una banda que se ensancha con la espera; aquí se podría usar `perfil.nivelCuenta` del Lab 10.
 5. **Limpieza de partidas**: no hay una tarea que borre partidas terminadas de Cloud Save.
