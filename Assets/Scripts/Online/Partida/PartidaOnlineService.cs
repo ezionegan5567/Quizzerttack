@@ -1,6 +1,7 @@
 // ============ PARTIDA ONLINE POR TURNOS: SERVICIO DE CLIENTE (requiere UGS_ON) ============
 // Habla con el módulo Cloud Code "QuizzerMatch" (PartidaOnline/Project) y escucha sus push, con el
-// patrón de TTTXO: CreateMatch / JoinMatch / PlayMove / GetMatchState.
+// patrón de TTTXO: CreateMatch / JoinMatch / PlayMove / GetMatchState, más QuickMatch / CancelQuickMatch /
+// GetActiveMatch para buscar rival y reanudar (patrón de la rama UGS de Hero Duel).
 //
 // Hace TRES cosas y ninguna es "decidir":
 //   1. Custodiar los requestId. Una jugada tiene un requestId que debe sobrevivir a todos sus
@@ -106,6 +107,28 @@ namespace QuizzerAttack.Partida
             Llamar("JoinMatch", "unirse:" + codigo,
                 new Dictionary<string, object> { { "matchId", codigo }, { "faccion", faccion } },
                 conCodigo: false, alRecibir: v => CodigoActual = v.Codigo);
+
+        /// <summary>
+        /// "Buscar rival" (QuickMatch): el servidor te une a quien espera o te deja esperando en una sala propia.
+        /// Si ya tenías una partida en curso, te la devuelve. La respuesta trae el código, igual que Crear o Unirse.
+        /// </summary>
+        public Task<VistaPartidaDto> BuscarRivalAsync(string faccion) =>
+            Llamar("QuickMatch", "buscar:" + faccion,
+                new Dictionary<string, object> { { "faccion", faccion } },
+                conCodigo: false, alRecibir: v => CodigoActual = v.Codigo);
+
+        /// <summary>Deja de buscar: el servidor te saca de la cola y cancela tu sala si nadie había entrado.</summary>
+        public Task<VistaPartidaDto> CancelarBusquedaAsync() =>
+            Llamar("CancelQuickMatch", null, new Dictionary<string, object>(), conCodigo: false, usaRequestId: false,
+                alRecibir: v => { if (v.Codigo.Length == 0 || v.Estado == EstadoPartidaValores.Terminada) Olvidar(); });
+
+        /// <summary>
+        /// Reconexión sin escribir el código: el servidor recuerda tu partida en curso (GetActiveMatch). Si no tienes
+        /// ninguna, la respuesta llega con Codigo vacío y no cambia nada.
+        /// </summary>
+        public Task<VistaPartidaDto> ReanudarActivaAsync() =>
+            Llamar("GetActiveMatch", null, new Dictionary<string, object>(), conCodigo: false, usaRequestId: false,
+                alRecibir: v => { if (v.Codigo.Length > 0 && v.Estado != EstadoPartidaValores.Terminada) CodigoActual = v.Codigo; });
 
         public Task<VistaPartidaDto> ConsultarAsync() =>
             Llamar("GetMatchState", null, new Dictionary<string, object>(), usaRequestId: false);
@@ -231,6 +254,19 @@ namespace QuizzerAttack.Partida
                 {
                     Fallo?.Invoke($"Versión del juego incompatible (cliente {GameProtocol.Version}, servidor {vista.Protocolo}).");
                     return null;
+                }
+
+                // "No tienes partida" (Codigo vacío): no es una vista de partida, no debe pisar la última.
+                if (vista.Codigo.Length == 0)
+                {
+                    alRecibir?.Invoke(vista);
+                    return vista;
+                }
+                // Una partida terminada que llega al reanudar tampoco debe sustituir a la que se está jugando.
+                if (funcion == "GetActiveMatch" && vista.Estado == EstadoPartidaValores.Terminada)
+                {
+                    alRecibir?.Invoke(vista);
+                    return vista;
                 }
 
                 // Una respuesta atrasada (p. ej. un reintento) no debe retroceder lo que ya sabemos.

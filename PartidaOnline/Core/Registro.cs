@@ -89,6 +89,11 @@ public class RegistroPartida
     /// <summary>Lo que pidió el anfitrión ("F1".."F4" o "Random"). Random se resuelve con la semilla al reproducir.</summary>
     public string FaccionAnfitrion { get; set; } = "";
     public string CreadaPorRequestId { get; set; } = "";
+    /// <summary>
+    /// true si la sala la abrió "Buscar rival" (QuickMatch): sólo esas entran en la cola de emparejamiento. Una sala creada
+    /// con CreateMatch es para un amigo con el código y nunca se le ofrece a un desconocido. No afecta al replay.
+    /// </summary>
+    public bool PorBusqueda { get; set; }
     /// <summary>Secreta: nunca viaja al cliente (con ella se podría reconstruir la pregunta que toca y el desempate).</summary>
     public int Semilla { get; set; }
     public string CreadaUtc { get; set; } = "";

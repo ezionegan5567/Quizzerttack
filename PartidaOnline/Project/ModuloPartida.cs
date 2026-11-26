@@ -6,7 +6,8 @@ namespace QuizzerMatch;
 
 /// <summary>
 /// Puntos de entrada de Cloud Code, con los nombres del patrón TTTXO: CreateMatch, JoinMatch,
-/// PlayMove, GetMatchState (y GetProtocolVersion para el handshake). Es una capa fina: valida la
+/// PlayMove, GetMatchState (y GetProtocolVersion para el handshake), más QuickMatch / CancelQuickMatch /
+/// GetActiveMatch para buscar rival y reanudar (patrón de la rama UGS de Hero Duel). Es una capa fina: valida la
 /// forma de los parámetros, saca la identidad de context.PlayerId (nunca de un parámetro) y
 /// delega en ServicioPartida. Todas las reglas del juego viven en el Core (Core/Reglas.cs).
 ///
@@ -51,8 +52,26 @@ public class ModuloPartida
         Servicio(context, push).PlayMoveAsync(Jugador(context), Codigo(matchId), Peticion(requestId), turnoEsperado,
             Jugada.Propuesta(tipo, heroeId, casilla, peleadorId, indiceHabilidad, preguntaId, opcion), DateTime.UtcNow);
 
-    private ServicioPartida Servicio(IExecutionContext context, IPushClient push) =>
-        new(new RepositorioCloudSave(_api, context), new NotificadorPush(push, context, _logger));
+    /// <summary>"Buscar rival": reanuda tu partida en curso, te une a quien espera, o te deja esperando en una sala propia.</summary>
+    [CloudCodeFunction("QuickMatch")]
+    public Task<VistaPartida> QuickMatch(IExecutionContext context, IPushClient push, string requestId, string faccion) =>
+        Servicio(context, push).QuickMatchAsync(Jugador(context), Peticion(requestId), faccion ?? "", DateTime.UtcNow);
+
+    /// <summary>Sale de la cola y cancela tu sala si seguía esperando rival.</summary>
+    [CloudCodeFunction("CancelQuickMatch")]
+    public Task<VistaPartida> CancelQuickMatch(IExecutionContext context, IPushClient push) =>
+        Servicio(context, push).CancelQuickMatchAsync(Jugador(context), DateTime.UtcNow);
+
+    /// <summary>Reconexión: tu partida en curso, o una vista con Codigo vacío si no tienes ninguna.</summary>
+    [CloudCodeFunction("GetActiveMatch")]
+    public Task<VistaPartida> GetActiveMatch(IExecutionContext context, IPushClient push) =>
+        Servicio(context, push).GetActiveMatchAsync(Jugador(context), DateTime.UtcNow);
+
+    private ServicioPartida Servicio(IExecutionContext context, IPushClient push)
+    {
+        var cloudSave = new RepositorioCloudSave(_api, context);
+        return new(cloudSave, new NotificadorPush(push, context, _logger), null, cloudSave);
+    }
 
     private static string Jugador(IExecutionContext context) =>
         string.IsNullOrEmpty(context.PlayerId)
